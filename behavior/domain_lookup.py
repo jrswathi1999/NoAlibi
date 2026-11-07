@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -22,7 +23,10 @@ def query_for(domain: str) -> str:
 
 
 def _clip(text: str) -> str:
-    text = " ".join((text or "").split())
+    """One clean line of at most 200 characters (search results often contain markdown)."""
+    text = re.sub(r"[#*`>|]+", " ", text or "")
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)  # [label](link) -> label
+    text = " ".join(text.split())
     return text if len(text) <= SUMMARY_MAX else text[: SUMMARY_MAX - 1].rstrip() + "…"
 
 

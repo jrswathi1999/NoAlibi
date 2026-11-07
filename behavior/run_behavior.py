@@ -11,26 +11,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from behavior.capture import Capture, CaptureError, sha256_file
+from behavior.capture import CaptureError, sha256_file
 from behavior.categorize import categorize, load_endpoints
 from behavior.domain_lookup import lookup_domains
-from behavior.mark import ActionMarker, load_actions, phase_for
+from behavior.mark import load_actions, phase_for
 from behavior.parse_pcap import Flow, build_flows, read_packets
-from behavior.procwatch import SocketWatcher, local_ips, wait_for_processes
+from behavior.procwatch import local_ips
+from behavior.recorder import Recorder
 from contracts.models import RUN_ID_RE, CaptureInfo, Event, Events, Lookup, UserAction, save_model
 
 SPLIT_GAP_SECONDS = 5.0  # a pause this long starts a new event on the same connection
 MIN_EVENT_BYTES = 120  # drop bare TCP keep-alive ACKs
-
-
-def iso(dt: datetime) -> str:
-    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _ts(t: float) -> datetime:
@@ -114,60 +110,41 @@ def record(
     auto_mark: float | None = None,
     interactive: bool = True,
 ) -> None:
-    """Capture while the app runs. Writes run.pcap, capture.json, actions.json, sockets.json."""
-    if not cmd and not proc_names:
-        raise ValueError("give --cmd (launch the app) and/or --proc-name (attach by process name)")
-    pcap = run_dir / "run.pcap"
-    capture = Capture(interface, pcap, max_seconds=seconds + 120)
-    marker = ActionMarker()
-    watcher: SocketWatcher | None = None
-    start = end = datetime.now(UTC)
+    """Capture while the app runs (terminal version: Enter marks an action, Ctrl+C stops)."""
+    rec = Recorder(run_dir, cmd, proc_names, interface, max_seconds=seconds)
     try:
-        capture.start()
-        start = datetime.now(UTC)
-        root_pid = None
-        if cmd:
-            flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-            root_pid = subprocess.Popen(cmd, shell=True, creationflags=flags).pid
-        watcher = SocketWatcher(root_pid=root_pid, proc_names=proc_names)
-        watcher.start()
-        if not cmd and not wait_for_processes(watcher, timeout=30):
-            raise CaptureError(f"no running process named {proc_names} within 30 s")
+        rec.start()
         if interactive:
-            marker.listen()
+            rec.marker.listen()
         print(f"Recording {seconds} s on {interface}. Press Enter when you use the AI feature.")
-        began = time.monotonic()
         marked = False
         try:
-            while time.monotonic() - began < seconds:
-                if auto_mark is not None and not marked and time.monotonic() - began >= auto_mark:
-                    marker.add("auto mark")
+            while rec.recording:
+                if auto_mark is not None and not marked and rec.elapsed() >= auto_mark:
+                    rec.mark("auto mark")
                     marked = True
                 time.sleep(0.2)
         except KeyboardInterrupt:
             print("Stopped early.")
     finally:
-        end = datetime.now(UTC)
-        if watcher:
-            watcher.stop()
-        capture.stop()  # always, even after a crash
-    marker.save(run_dir / "actions.json")
-    sockets = sorted(watcher.sockets) if watcher else []
-    (run_dir / "sockets.json").write_text(
-        json.dumps(
-            {
-                "sockets": sockets,
-                "processes": sorted(watcher.process_names) if watcher else [],
-                "my_ips": sorted(local_ips()),
-                "errors": watcher.errors if watcher else [],
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+        rec.stop()
+
+
+def preview_events(rec: Recorder, first_party: list[str], update: list[str]) -> list[dict]:
+    """Events so far, parsed from the pcap that is still being written (for the live view)."""
+    if rec.started_at is None:
+        return []
+    my_ips = local_ips()
+    flows = build_flows(read_packets(rec.capture.pcap_path), my_ips, rec.app_sockets())
+    capture = CaptureInfo(
+        start=rec.started_at,
+        end=rec.ended_at or datetime.now(UTC),
+        interface=rec.interface,
+        pcap_sha256="live",
     )
-    info = {"start": iso(start), "end": iso(end), "interface": interface}
-    (run_dir / "capture.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    actions = list(rec.marker.actions)
+    events = build_events("00000000-000000-live", flows, capture, actions, first_party, update)
+    return [e.model_dump(mode="json") for e in events.events]
 
 
 def events_from_run_dir(
