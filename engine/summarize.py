@@ -40,20 +40,66 @@ DOMAIN_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b", re.IGNORECASE)
 
 SYSTEM_PROMPT = """You explain privacy audit results to non-technical people.
 You get JSON with findings (severity red = broken promise, amber = suspicious, info = context)
-and a scorecard of what the privacy policy says.
+and sentences describing what the privacy policy says. Never contradict those sentences.
 Write exactly 3 or 4 short, plain sentences. Lead with the most serious finding.
 Use ONLY facts in the JSON. Do not add companies, domains, numbers or advice that are not in it.
 Do not use markdown.
 Reply with JSON only: {"sentences": ["<sentence 1>", "<sentence 2>", "<sentence 3>"]}"""
 
 
+POLICY_FACTS = {
+    "data_stays_local": (
+        "The policy promises your data stays on your device.",
+        "The policy does NOT promise that your data stays on your device.",
+    ),
+    "names_ai_provider": (
+        "The policy names the AI company it uses.",
+        "The policy does NOT name any AI company it uses.",
+    ),
+    "trains_on_user_data": (
+        "The policy says your data is used to train AI.",
+        "The policy says your data is NOT used to train AI.",
+    ),
+    "retention_stated": (
+        "The policy states a concrete retention period.",
+        "The policy does NOT state a concrete retention period.",
+    ),
+    "ai_opt_out": (
+        "The policy lets you opt out of AI.",
+        "The policy does NOT offer an AI opt-out.",
+    ),
+    "shares_with_third_parties": (
+        "The policy says it shares data with third parties.",
+        "The policy says it does NOT share data with third parties.",
+    ),
+}
+NEGATION = re.compile(r"\b(not|never|no|doesn't|does not|isn't|without)\b", re.IGNORECASE)
+LOCAL_PROMISE = re.compile(r"stays? (only )?on your (device|computer|machine)", re.IGNORECASE)
+
+
+def policy_sentences(scorecard: dict) -> list[str]:
+    """Scorecard as unambiguous sentences; small models misread bare yes/no keys."""
+    out = []
+    for key, value in scorecard.items():
+        yes, no = POLICY_FACTS.get(key, (f"{key}: yes.", f"{key}: no."))
+        if value == "yes":
+            out.append(yes)
+        elif value == "no":
+            out.append(no)
+        else:
+            out.append(
+                f"Unclear: the policy does not say. ({yes.removeprefix('The policy ').rstrip('.')})"
+            )
+    return out
+
+
 def build_payload(findings: Findings) -> dict:
-    """The only data the model sees: finding severities/titles and the scorecard."""
+    """The only data the model sees: finding severities/titles and what the policy says."""
     return {
         "findings": [
             {"severity": f.severity, "rule": f.rule, "title": f.title} for f in findings.findings
         ],
-        "scorecard": findings.scorecard,
+        "what_the_policy_says": policy_sentences(findings.scorecard),
     }
 
 
@@ -109,6 +155,11 @@ def summary_problems(summary: str, findings: Findings) -> list[str]:
     n = count_sentences(summary)
     if not 2 <= n <= 5:
         problems.append(f"{n} sentences, wanted 3 to 4")
+    if findings.scorecard.get("data_stays_local") != "yes":
+        for sentence in re.split(r"(?<=[.!?])\s+", summary):
+            if LOCAL_PROMISE.search(sentence) and not NEGATION.search(sentence):
+                problems.append("claims the policy promises data stays on the device; it does not")
+                break
     for domain in DOMAIN_RE.findall(summary):
         if domain.lower() not in source:
             problems.append(f"names domain not in findings: {domain}")

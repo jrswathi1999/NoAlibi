@@ -36,7 +36,8 @@ class FakeResp:
 
 def test_payload_has_only_findings_and_scorecard(findings):
     payload = summ.build_payload(findings)
-    assert set(payload) == {"findings", "scorecard"}
+    assert set(payload) == {"findings", "what_the_policy_says"}
+    assert "The policy promises your data stays on your device." in payload["what_the_policy_says"]
     assert "evidence_sha256" not in json.dumps(payload)
 
 
@@ -103,3 +104,13 @@ def test_run_summarize_writes_model_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(summ, "summarize", lambda *a, **k: GOOD)
     summ.run_summarize(tmp_path)
     assert load_model(tmp_path / "findings.json", Findings).summary == GOOD
+
+
+def test_false_local_promise_rejected(findings):
+    no_local = findings.model_copy(
+        update={"scorecard": {**findings.scorecard, "data_stays_local": "no"}}
+    )
+    bad = "The policy promises your data stays on your device. But 12 KB went to api.openai.com. That is a lot."
+    assert any("stays on the device" in p for p in summ.summary_problems(bad, no_local))
+    ok = "The policy does not promise your data stays on your device. 12 KB went to api.openai.com. Noted."
+    assert not any("stays on the device" in p for p in summ.summary_problems(ok, no_local))

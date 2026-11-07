@@ -27,7 +27,8 @@ def test_render_fixture(run_dir: Path) -> None:
     assert 'id="claim-c1"' in html and 'id="event-e4"' in html
     assert 'data-claims="c1" data-events="e4"' in html
     assert "We may share information with trusted service providers." in html
-    assert "Only domain names left this machine." in html  # no log -> no count
+    assert "None of the audit's data left this machine." in html
+    assert "outbound_queries.log" not in html  # no log -> no count
 
 
 def test_red_wins_over_amber_for_highlight(run_dir: Path) -> None:
@@ -40,7 +41,7 @@ def test_red_wins_over_amber_for_highlight(run_dir: Path) -> None:
 def test_outbound_count_in_footer(run_dir: Path) -> None:
     (run_dir / "outbound_queries.log").write_text("NotesApp privacy policy\ncdn.xyz-metrics.io\n")
     html = render(run_dir).read_text()
-    assert "(2 outbound queries)" in html
+    assert "No Alibi's own network actions: 2" in html
 
 
 def test_html_is_escaped(run_dir: Path) -> None:

@@ -237,16 +237,17 @@ def r5_silent_on_training(claims: Claims, events: Events) -> list[Finding]:
 
 
 def r6_unknown_recipient(claims: Claims, events: Events) -> list[Finding]:
-    """Info: one finding per unknown event, with its lookup summary."""
+    """Info: one finding per unknown destination (grouped by domain), with its lookup summary."""
     findings = []
-    for e in events.events:
-        if e.category != "unknown":
-            continue
-        if e.lookup and e.lookup.summary.strip():
-            title = f"Unknown recipient {_label(e)}: {e.lookup.summary.strip()}"
+    unknown = [e for e in events.events if e.category == "unknown"]
+    for label, evs in _group_by_label(unknown).items():
+        lookup = next((e.lookup for e in evs if e.lookup and e.lookup.summary.strip()), None)
+        count = f" ({len(evs)} bursts)" if len(evs) > 1 else ""
+        if lookup:
+            title = f"Unknown recipient {label}{count}: {lookup.summary.strip()}"
         else:
-            title = f"Unknown recipient {_label(e)} (no lookup result)"
-        findings.append(_finding("info", "R6_unknown_recipient", title, [], [e]))
+            title = f"Unknown recipient {label}{count} (no lookup result)"
+        findings.append(_finding("info", "R6_unknown_recipient", title, [], evs))
     return findings
 
 

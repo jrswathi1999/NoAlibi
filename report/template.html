@@ -153,7 +153,7 @@
   </div>
 
   <footer>
-    <div class="promise">Only domain names left this machine{% if outbound_count is not none %} ({{ outbound_count }} outbound {{ 'query' if outbound_count == 1 else 'queries' }}){% endif %}. The policy was read by a local model.</div>
+    <div class="promise">None of the audit's data left this machine. The policy was read by a local model.{% if outbound_count is not none %} No Alibi's own network actions: {{ outbound_count }} (domain-name lookups, certificate checks, the policy download), each listed in outbound_queries.log.{% endif %}</div>
     <div>Evidence SHA-256 (claims.json + events.json + run.pcap): <code>{{ evidence_sha256 or 'not computed' }}</code></div>
     <div>Claims model: <code>{{ model }}</code> · Policy fetched {{ app.fetched_at.strftime('%Y-%m-%d %H:%M') }} UTC · Policy SHA-256 <code>{{ app.policy_sha256 }}</code></div>
     <div>No Alibi records traffic only. It never decrypts, blocks or modifies the audited app.</div>
