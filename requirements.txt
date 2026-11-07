@@ -10,3 +10,4 @@ pytest>=8.0
 requests>=2.31
 # Needed by fastapi.testclient in tests.
 httpx>=0.27
+cryptography>=42.0
