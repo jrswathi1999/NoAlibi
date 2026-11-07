@@ -97,7 +97,9 @@ def build_payload(findings: Findings) -> dict:
     """The only data the model sees: finding severities/titles and what the policy says."""
     return {
         "findings": [
-            {"severity": f.severity, "rule": f.rule, "title": f.title} for f in findings.findings
+            {"severity": f.severity, "rule": f.rule, "title": f.title}
+            for f in findings.findings
+            if f.severity in ("red", "amber")  # background info would only add noise
         ],
         "what_the_policy_says": policy_sentences(findings.scorecard),
     }
@@ -201,8 +203,8 @@ def run_summarize(run_dir: str | Path, model: str | None = None) -> Path:
     """Replace findings.json's summary with the Ollama one when it passes validation."""
     path = Path(run_dir) / "findings.json"
     findings = load_model(path, Findings)
-    if not findings.findings:
-        log.info("no findings, keeping the plain summary")
+    if not any(f.severity in ("red", "amber") for f in findings.findings):
+        log.info("nothing to flag, keeping the plain summary")
         return path
     text = summarize(findings, model=model)
     if text:

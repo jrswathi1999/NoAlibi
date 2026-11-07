@@ -204,3 +204,18 @@ def test_run_compare_stamps_evidence_hash(tmp_path):
     findings = load_model(run_compare(run_dir), Findings)
     assert findings.evidence_sha256 == evidence_sha256(run_dir)
     assert len(findings.evidence_sha256) == 64
+
+
+def test_normal_destinations_are_never_flagged(claims, events):
+    """The app's own servers, CDNs and unidentified servers can't trigger R2, R3 or R4."""
+    normal = [
+        e.model_copy(update={"category": cat_})
+        for e in events.events
+        for cat_ in ("first_party", "update", "unknown")
+    ]
+    ev = events.model_copy(
+        update={"events": [e.model_copy(update={"id": f"x{i}"}) for i, e in enumerate(normal)]}
+    )
+    assert rules.r2_local_promise_broken(claims, ev) == []
+    assert rules.r3_background_telemetry(claims, ev) == []
+    assert rules.r4_content_upload_suspicion(claims, ev) == []

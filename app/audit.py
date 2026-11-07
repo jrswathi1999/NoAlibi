@@ -87,7 +87,7 @@ def verdict_for(findings: Findings) -> dict:
     elif amber:
         verdict, line = "QUESTIONABLE", amber[0].title
     else:
-        verdict, line = "ALIBI_HOLDS", "Nothing it did contradicts what its policy says."
+        verdict, line = "ALIBI_HOLDS", "Nothing it did contradicts its privacy policy."
     return {
         "verdict": verdict,
         "red": len(red),
@@ -98,9 +98,9 @@ def verdict_for(findings: Findings) -> dict:
 
 
 def apply_evidence_strength(findings: Findings, flows: dict) -> Findings:
-    """A red finding resting only on 'possible'/'weak' identifications becomes amber, labelled.
+    """A red or amber finding resting only on unsure identifications becomes info (not a verdict).
 
-    Fairness: we never accuse on a shared CDN address alone.
+    Fairness: we never accuse on a shared CDN address or a guessed name.
     """
     conf_by_domain: dict[str, int] = {}
     for f in flows.get("flows", []):
@@ -110,7 +110,7 @@ def apply_evidence_strength(findings: Findings, flows: dict) -> Findings:
     events = {e["id"]: e for e in flows.get("_events", [])}
     out = []
     for f in findings.findings:
-        if f.severity == "red" and f.event_ids:
+        if f.severity in ("red", "amber") and f.event_ids:
             ranks = [
                 conf_by_domain.get(
                     events.get(eid, {}).get("domain") or events.get(eid, {}).get("ip"), 0
@@ -118,12 +118,7 @@ def apply_evidence_strength(findings: Findings, flows: dict) -> Findings:
                 for eid in f.event_ids
             ]
             if ranks and max(ranks) < CONFIDENCE_RANK["likely"]:
-                f = f.model_copy(
-                    update={
-                        "severity": "amber",
-                        "title": f.title + " (shared CDN address, not confirmed)",
-                    }
-                )
+                f = f.model_copy(update={"severity": "info", "title": f.title + " (not confirmed)"})
         out.append(f)
     return findings.model_copy(update={"findings": out})
 
@@ -201,32 +196,12 @@ class Audit:
                 self._intel_thread.join(timeout=300)
             self._save_claims()
             self._lookups()
-            self._status("Comparing promises with behavior", "compare")
-            run_compare(self.run_dir)
-            flows = json.loads((self.run_dir / "flows.json").read_text(encoding="utf-8"))
-            flows["_events"] = json.loads(
-                (self.run_dir / "events.json").read_text(encoding="utf-8")
-            )["events"]
-            findings = apply_evidence_strength(
-                load_model(self.run_dir / "findings.json", Findings), flows
-            )
-            save_model(self.run_dir / "findings.json", findings)
-            if findings.findings:
-                self._status("Writing a plain-English summary with the local model", "summary")
-                run_summarize(self.run_dir)
-            findings = load_model(self.run_dir / "findings.json", Findings)
-            findings = findings.model_copy(
-                update={"evidence_sha256": evidence_sha256(self.run_dir)}
-            )
-            save_model(self.run_dir / "findings.json", findings)
-            self._dump("verdict.json", verdict_for(findings))
-            self._status("Rendering the report and sealing the evidence", "report")
-            render(self.run_dir)
+            verdict = judge(self.run_dir, self._status)
             self.meta["ended_at"] = time.time()
             self._dump("run.json", self.meta)
-            self.bundle()
+            bundle(self.run_dir)
             self.state = "done"
-            self.feed.publish({"type": "done", "run_id": self.run_id, **verdict_for(findings)})
+            self.feed.publish({"type": "done", "run_id": self.run_id, **verdict})
         except Exception as exc:
             log.exception("audit failed")
             self.state = "error"
@@ -323,25 +298,65 @@ class Audit:
         ]
         save_model(self.run_dir / "events.json", events.model_copy(update={"events": patched}))
 
-    def bundle(self) -> Path:
-        """evidence.zip with every file plus manifest.json of SHA-256 hashes."""
-        manifest = {"run_id": self.run_id, "created_at": datetime.now(UTC).isoformat(), "files": {}}
-        for name in EVIDENCE_FILES:
-            p = self.run_dir / name
-            if p.exists():
-                manifest["files"][name] = hashlib.sha256(p.read_bytes()).hexdigest()
-        findings = load_model(self.run_dir / "findings.json", Findings)
-        manifest["evidence_sha256"] = findings.evidence_sha256
-        manifest["verify"] = "cat claims.json events.json sensor.log | shasum -a 256"
-        self._dump("manifest.json", manifest)
-        out = self.run_dir / "evidence.zip"
-        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-            for name in [*manifest["files"], "manifest.json"]:
-                zf.write(self.run_dir / name, arcname=f"{self.run_id}/{name}")
-        return out
-
     def _dump(self, name: str, data: dict) -> None:
         (self.run_dir / name).write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+
+
+def judge(run_dir: Path, status=lambda text, step=None: None) -> dict:
+    """Compare, apply evidence strength, summarize, seal and render. Safe to re-run on old runs."""
+    status("Comparing promises with behavior", "compare")
+    run_compare(run_dir)
+    flows = json.loads((run_dir / "flows.json").read_text(encoding="utf-8"))
+    flows["_events"] = json.loads((run_dir / "events.json").read_text(encoding="utf-8"))["events"]
+    findings = apply_evidence_strength(load_model(run_dir / "findings.json", Findings), flows)
+    save_model(run_dir / "findings.json", findings)
+    if any(f.severity in ("red", "amber") for f in findings.findings):
+        status("Writing a plain-English summary with the local model", "summary")
+        run_summarize(run_dir)
+    findings = load_model(run_dir / "findings.json", Findings)
+    findings = findings.model_copy(update={"evidence_sha256": evidence_sha256(run_dir)})
+    save_model(run_dir / "findings.json", findings)
+    verdict = verdict_for(findings)
+    (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=1) + "\n", encoding="utf-8")
+    status("Rendering the report and sealing the evidence", "report")
+    render(run_dir)
+    return verdict
+
+
+def bundle(run_dir: Path) -> Path:
+    """evidence.zip with every file plus manifest.json of SHA-256 hashes."""
+    run_id = run_dir.name
+    manifest = {"run_id": run_id, "created_at": datetime.now(UTC).isoformat(), "files": {}}
+    for name in EVIDENCE_FILES:
+        p = run_dir / name
+        if p.exists():
+            manifest["files"][name] = hashlib.sha256(p.read_bytes()).hexdigest()
+    findings = load_model(run_dir / "findings.json", Findings)
+    manifest["evidence_sha256"] = findings.evidence_sha256
+    manifest["verify"] = "cat claims.json events.json sensor.log | shasum -a 256"
+    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
+    out = run_dir / "evidence.zip"
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in [*manifest["files"], "manifest.json"]:
+            zf.write(run_dir / name, arcname=f"{run_id}/{name}")
+    return out
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Re-judge saved runs with the current rules:  python -m app.audit --rejudge [run_id ...]"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Re-judge saved audits with the current rules.")
+    parser.add_argument("--rejudge", nargs="*", metavar="RUN_ID", required=True)
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+    ids = args.rejudge or [r["run_id"] for r in list_runs()]
+    for run_id in ids:
+        d = run_path(run_id)
+        verdict = judge(d)
+        bundle(d)
+        print(f"{run_id}: {verdict['verdict']} ({verdict['red']} red, {verdict['amber']} amber)")
+    return 0
 
 
 def list_runs() -> list[dict]:
@@ -359,3 +374,7 @@ def list_runs() -> list[dict]:
         except ValueError:
             continue
     return out
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

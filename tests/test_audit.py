@@ -19,10 +19,11 @@ def _flows(confidence: str) -> dict:
     }
 
 
-def test_red_downgraded_when_only_possible():
+def test_unconfirmed_findings_never_count():
     out = apply_evidence_strength(_findings(), _flows("possible"))
-    f1 = next(f for f in out.findings if f.id == "f1")
-    assert f1.severity == "amber" and f1.title.endswith("(shared CDN address, not confirmed)")
+    for fid in ("f1", "f2", "f4", "f5"):  # every finding that rests on api.openai.com
+        f = next(f for f in out.findings if f.id == fid)
+        assert f.severity == "info" and f.title.endswith("(not confirmed)")
 
 
 def test_red_kept_when_confirmed():

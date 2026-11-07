@@ -62,7 +62,10 @@ def fallback_summary(app_name: str, findings: list[Finding]) -> str:
     red = [f for f in findings if f.severity == "red"]
     amber = [f for f in findings if f.severity == "amber"]
     if not red and not amber:
-        return f"No Alibi found no contradictions between {app_name}'s policy and its behavior."
+        return (
+            f"Nothing {app_name} did during the audit contradicts its privacy policy. "
+            "Its connections went to its own servers or to ordinary services, and none were flagged."
+        )
     head = (
         f"No Alibi found {len(red)} contradiction(s) and {len(amber)} suspicious pattern(s) "
         f"for {app_name}."

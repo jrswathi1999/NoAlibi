@@ -22,7 +22,9 @@ R3_MIN_EVENTS = 3
 R3_MAX_GAP_CV = 0.20  # std of gaps under 20% of the mean gap
 R4_WINDOW = timedelta(seconds=5)
 R4_MIN_BYTES_OUT = 5120  # summed per domain inside the window
-R2_EXEMPT_CATEGORIES = {"first_party", "update"}
+# Only identified third parties can be flagged. Talking to the app's own servers, update servers,
+# CDNs or servers we couldn't identify is normal, and flagging it would be unfair.
+THIRD_PARTY = {"ai_provider", "analytics", "tracker", "error_reporting"}
 
 # Names that refer to the same AI company. Lower-case, letters and digits only.
 PROVIDER_ALIASES: list[set[str]] = [
@@ -140,7 +142,7 @@ def r1_undisclosed_ai_provider(claims: Claims, events: Events) -> list[Finding]:
 
 
 def r2_local_promise_broken(claims: Claims, events: Events) -> list[Finding]:
-    """Red: data_stays_local = yes, yet a user_action event sends > 2 KB to a third party."""
+    """Red: data_stays_local = yes, yet a user_action event sends > 2 KB to an identified third party."""
     local_claims = [c for c in _claims_of(claims, "data_stays_local") if c.value == "yes"]
     if not local_claims:
         return []
@@ -148,9 +150,7 @@ def r2_local_promise_broken(claims: Claims, events: Events) -> list[Finding]:
     offending = [
         e
         for e in events.events
-        if e.phase == "user_action"
-        and e.bytes_out > R2_MIN_BYTES_OUT
-        and e.category not in R2_EXEMPT_CATEGORIES
+        if e.phase == "user_action" and e.bytes_out > R2_MIN_BYTES_OUT and e.category in THIRD_PARTY
     ]
     findings = []
     for label, evs in _group_by_label(offending).items():
@@ -173,8 +173,8 @@ def _every(seconds: float) -> str:
 
 
 def r3_background_telemetry(claims: Claims, events: Events) -> list[Finding]:
-    """Amber: 3+ idle events to one domain with roughly even gaps (std < 20% of mean gap)."""
-    idle = [e for e in events.events if e.phase == "idle"]
+    """Amber: 3+ idle events to one third-party domain with even gaps (std < 20% of mean gap)."""
+    idle = [e for e in events.events if e.phase == "idle" and e.category in THIRD_PARTY]
     findings = []
     for label, evs in _group_by_label(idle).items():
         if len(evs) < R3_MIN_EVENTS:
@@ -199,8 +199,8 @@ def _near_user_action(event: Event, events: Events) -> bool:
 
 
 def r4_content_upload_suspicion(claims: Claims, events: Events) -> list[Finding]:
-    """Amber: within 5 s of a user action, more than 5 KB goes out to a single domain."""
-    near = [e for e in events.events if _near_user_action(e, events)]
+    """Amber: within 5 s of a user action, more than 5 KB goes out to one identified third party."""
+    near = [e for e in events.events if e.category in THIRD_PARTY and _near_user_action(e, events)]
     findings = []
     for label, evs in _group_by_label(near).items():
         total = sum(e.bytes_out for e in evs)
