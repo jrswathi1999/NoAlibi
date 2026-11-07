@@ -276,3 +276,57 @@ def test_no_keys_means_no_queries_and_no_log(tmp_path, monkeypatch):
     got = domain_lookup.lookup_domains(["x.example.com"], tmp_path)
     assert got == {"x.example.com": None}
     assert not (tmp_path / "outbound_queries.log").exists()
+
+
+def test_heartbeat_on_one_kept_alive_connection_shows_in_timing():
+    from behavior.mark import iso
+    from behavior.parse_pcap import Flow
+    from behavior.run_behavior import build_timing
+
+    start = 1794100000.0
+    f = Flow(ip="1.2.3.4", port=443, proto="tcp", first_t=start + 1, last_t=start + 80)
+    f.domain = "events.cdp-example.net"
+    # handshake at +1 s, then 3 heartbeats ~20 s apart (each split over 2 packets), all one connection
+    f.out_bytes_by_t = [(start + 1, 517)]
+    for t in (20.0, 40.2, 59.9):
+        f.out_bytes_by_t += [(start + t, 300), (start + t + 0.05, 110)]
+    capture = {
+        "start": iso(start),
+        "end": iso(start + 90),
+        "interface": "veth-host",
+        "pcap_sha256": "0" * 64,
+    }
+    tm = build_timing([f], capture, [])["events.cdp-example.net"]
+    assert tm["idle_bursts"] == 3
+    assert [b["bytes_out"] for b in tm["bursts"]] == [517, 410, 410, 410]
+    assert tm["mean_gap_s"] == 19.95 and tm["cv"] < 0.05
+
+
+def test_ss_parsing_keeps_only_app_sockets():
+    from behavior.host_capture import parse_ss
+
+    lines = [
+        'tcp ESTAB 0 0 192.168.64.5:51234 162.159.140.245:443 users:(("notesapp",pid=4312,fd=31))',
+        'tcp ESTAB 0 0 192.168.64.5:51240 142.250.1.1:443 users:(("firefox",pid=999,fd=12))',
+        'udp UNCONN 0 0 0.0.0.0:5353 0.0.0.0:* users:(("notesapp",pid=4312,fd=40))',
+        'tcp ESTAB 0 0 [::ffff:192.168.64.5]:51300 [::ffff:3.3.3.3]:443 users:(("notesapp",pid=4400,fd=9))',
+    ]
+    assert parse_ss("\n".join(lines), {4312, 4400}) == {
+        ("192.168.64.5", 51234, "162.159.140.245", 443),
+        ("::ffff:192.168.64.5", 51300, "::ffff:3.3.3.3", 443),
+    }
+
+
+def test_host_mode_filters_packets_to_app_sockets():
+    host = "192.168.64.5"
+    lines = [
+        tcp(
+            1.0, host, "162.159.140.245", 51234, 443, 900, sni="api.openai.com", hs="1"
+        ),
+        tcp(
+            1.1, host, "142.250.1.1", 51240, 443, 700, sni="www.google.com", hs="1"
+        ),  # browser
+    ]
+    pk = [p for p in (parse_row(x) for x in lines) if p]
+    flows = build_flows(pk, {host}, {(host, 51234, "::ffff:162.159.140.245", 443)})
+    assert [f.domain for f in flows] == ["api.openai.com"]
