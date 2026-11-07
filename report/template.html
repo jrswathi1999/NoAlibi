@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No Alibi report: {{ app.name }}</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e2dd;
+    --red: #c62828; --red-bg: #fdecea; --amber: #b26a00; --amber-bg: #fff4e0;
+    --info: #3d5a80; --info-bg: #e8eef6; --ok: #2e7d32; --ok-bg: #e8f5e9;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --panel: #1e1e1c; --text: #ecebe6; --muted: #a09f99; --line: #33332f;
+      --red: #ff6b6b; --red-bg: #3a1d1d; --amber: #ffb74d; --amber-bg: #3a2c14;
+      --info: #8fb3e0; --info-bg: #1c2633; --ok: #81c784; --ok-bg: #1b2e1c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1440px; margin: 0 auto; padding: 24px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 20px; }
+  header h1 { margin: 0; font-size: 26px; }
+  header .meta { color: var(--muted); font-size: 14px; }
+  .verdict { padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+  .verdict.red { background: var(--red-bg); color: var(--red); }
+  .verdict.amber { background: var(--amber-bg); color: var(--amber); }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  .summary {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 16px; font-size: 16px;
+  }
+  .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .score { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .score .k { color: var(--muted); font-size: 12px; }
+  .score .v { font-weight: 700; text-transform: uppercase; font-size: 13px; }
+  .v.yes { color: var(--ok); } .v.no { color: var(--red); } .v.unclear { color: var(--amber); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr); gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  section h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .claim, .finding { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; transition: background .15s; }
+  .claim .type { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .claim blockquote { margin: 6px 0; font-style: italic; }
+  .claim a { color: var(--info); font-size: 12px; word-break: break-all; }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--bg); color: var(--muted); }
+  .finding { cursor: pointer; }
+  .finding .title { font-weight: 600; }
+  .finding .refs { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .sev-red { border-left-color: var(--red); } .sev-amber { border-left-color: var(--amber); } .sev-info { border-left-color: var(--info); }
+  .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; margin-right: 6px; }
+  .badge.red { background: var(--red-bg); color: var(--red); }
+  .badge.amber { background: var(--amber-bg); color: var(--amber); }
+  .badge.info { background: var(--info-bg); color: var(--info); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); padding: 6px; white-space: nowrap; }
+  td { border-bottom: 1px solid var(--line); padding: 6px; vertical-align: top; }
+  td.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .domain { font-family: var(--mono); overflow-wrap: anywhere; }
+  .owner { color: var(--muted); font-size: 12px; }
+  tr.sev-red td:first-child { box-shadow: inset 4px 0 var(--red); }
+  tr.sev-amber td:first-child { box-shadow: inset 4px 0 var(--amber); }
+  tr.sev-info td:first-child { box-shadow: inset 4px 0 var(--info); }
+  .claim.lit, .finding.lit { box-shadow: 0 0 0 2px var(--muted); }
+  .lit.sev-red, tr.lit.sev-red td { background: var(--red-bg); }
+  .lit.sev-amber, tr.lit.sev-amber td { background: var(--amber-bg); }
+  .lit.sev-info, tr.lit.sev-info td { background: var(--info-bg); }
+  .empty { color: var(--muted); font-style: italic; }
+  footer { margin-top: 24px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+  footer code { font-family: var(--mono); word-break: break-all; color: var(--text); }
+  footer .promise { font-weight: 600; color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>{{ app.name }}</h1>
+    {% if red_count %}
+    <span class="verdict red">{{ red_count }} red · {{ amber_count }} amber</span>
+    {% elif amber_count %}
+    <span class="verdict amber">{{ amber_count }} amber</span>
+    {% else %}
+    <span class="verdict ok">No contradictions found</span>
+    {% endif %}
+    <span class="meta">Run {{ run_id }} · captured {{ run_time }} · {{ events|length }} connections · {{ claims|length }} claims</span>
+  </header>
+
+  {% if summary %}<div class="summary">{{ summary }}</div>{% endif %}
+
+  <div class="scorecard">
+    {% for key, value in scorecard.items() %}
+    <div class="score"><div class="k">{{ key|replace('_', ' ') }}</div><div class="v {{ value }}">{{ value }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div class="grid">
+    <section>
+      <h2>What they say</h2>
+      {% for c in claims %}
+      <div class="claim {% if c.id in claim_sev %}sev-{{ claim_sev[c.id] }}{% endif %}" id="claim-{{ c.id }}">
+        <div class="type">{{ c.id }} · {{ c.type }} = <strong>{{ c.value }}</strong>{% if c.providers %} · names {{ c.providers|join(', ') }}{% endif %}</div>
+        <blockquote>“{{ c.quote }}”</blockquote>
+        <a href="{{ c.source_url }}" rel="noopener">{{ c.source_url }}</a> <span class="tag">{{ c.match }} match</span>
+      </div>
+      {% else %}
+      <p class="empty">No validated claims.</p>
+      {% endfor %}
+    </section>
+
+    <section>
+      <h2>Findings</h2>
+      {% for f in findings %}
+      <div class="finding sev-{{ f.severity }}" id="finding-{{ f.id }}"
+           data-claims="{{ f.claim_ids|join(' ') }}" data-events="{{ f.event_ids|join(' ') }}" data-sev="{{ f.severity }}" tabindex="0">
+        <div><span class="badge {{ f.severity }}">{{ f.severity }}</span><span class="title">{{ f.title }}</span></div>
+        <div class="refs">{{ f.id }} · {{ f.rule }}{% if f.claim_ids %} · claims {{ f.claim_ids|join(', ') }}{% endif %}{% if f.event_ids %} · events {{ f.event_ids|join(', ') }}{% endif %}</div>
+      </div>
+      {% else %}
+      <p class="empty">Nothing to report.</p>
+      {% endfor %}
+    </section>
+
+    <section>
+      <h2>What it did</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Domain · owner</th><th>Out / In</th><th>Phase</th><th>Category</th></tr></thead>
+        <tbody>
+        {% for e in events %}
+        <tr id="event-{{ e.id }}" class="{% if e.id in event_sev %}sev-{{ event_sev[e.id] }}{% endif %}">
+          <td class="num">+{{ '%.1f'|format(e.t_rel_s) }} s</td>
+          <td><div class="domain">{{ e.domain or e.ip }}{% if e.port not in (443, 80) %}:{{ e.port }}{% endif %}</div><div class="owner">{{ e.owner or 'unknown owner' }}</div></td>
+          <td class="num">{{ e.bytes_out|human_bytes }} / {{ e.bytes_in|human_bytes }}</td>
+          <td>{{ e.phase|replace('_', ' ') }}</td>
+          <td>{{ e.category|replace('_', ' ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">No connections recorded.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% if user_actions %}
+      <p class="meta">User actions: {% for a in user_actions %}{{ a.label or 'action' }} at {{ a.t.strftime('%H:%M:%S') }}Z{% if not loop.last %}; {% endif %}{% endfor %}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <footer>
+    <div class="promise">Only domain names left this machine{% if outbound_count is not none %} ({{ outbound_count }} outbound {{ 'query' if outbound_count == 1 else 'queries' }}){% endif %}. The policy was read by a local model.</div>
+    <div>Evidence SHA-256 (claims.json + events.json + run.pcap): <code>{{ evidence_sha256 or 'not computed' }}</code></div>
+    <div>Claims model: <code>{{ model }}</code> · Policy fetched {{ app.fetched_at.strftime('%Y-%m-%d %H:%M') }} UTC · Policy SHA-256 <code>{{ app.policy_sha256 }}</code></div>
+    <div>No Alibi records traffic only. It never decrypts, blocks or modifies the audited app.</div>
+  </footer>
+</main>
+<script>
+  // Hover or focus a finding to light up its claim(s) and event(s).
+  document.querySelectorAll(".finding").forEach(function (card) {
+    var ids = []
+      .concat(card.dataset.claims.split(" ").filter(Boolean).map(function (id) { return "claim-" + id; }))
+      .concat(card.dataset.events.split(" ").filter(Boolean).map(function (id) { return "event-" + id; }));
+    var sev = "sev-" + card.dataset.sev;
+    function set(on) {
+      card.classList.toggle("lit", on);
+      card.classList.add(sev);
+      ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (on) {
+          el.dataset.prev = el.className;
+          el.classList.add("lit", sev);
+        } else if (el.dataset.prev !== undefined) {
+          el.className = el.dataset.prev;
+        }
+      });
+    }
+    card.addEventListener("mouseenter", function () { set(true); });
+    card.addEventListener("mouseleave", function () { set(false); });
+    card.addEventListener("focus", function () { set(true); });
+    card.addEventListener("blur", function () { set(false); });
+  });
+</script>
+</body>
+</html>
