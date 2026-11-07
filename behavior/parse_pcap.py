@@ -207,3 +207,29 @@ def parse_pcap(pcap: Path, local_ips: set[str] | None = None) -> list[Flow]:
     rows = run_tshark(pcap)
     packets = [p for p in (parse_row(r) for r in rows) if p is not None]
     return build_flows(packets, local_ips)
+
+
+BURST_GAP_S = 0.3  # outbound packets closer than this belong to the same upload burst
+
+
+def domain_bursts(flows: list[Flow]) -> dict[str, list[tuple[float, int]]]:
+    """Per domain, the upload bursts (start time, bytes) across all its connections.
+
+    events.json has one event per connection, so a heartbeat sent over one
+    kept-alive connection is a single event. These bursts expose the rhythm
+    that the periodic-telemetry rule needs.
+    """
+    packets: dict[str, list[tuple[float, int]]] = {}
+    for f in flows:
+        packets.setdefault(f.domain, []).extend(f.out_bytes_by_t)
+    out: dict[str, list[tuple[float, int]]] = {}
+    for domain, pk in packets.items():
+        bursts: list[list[float]] = []  # [start, last, bytes]
+        for t, n in sorted(pk):
+            if bursts and t - bursts[-1][1] < BURST_GAP_S:
+                bursts[-1][1] = t
+                bursts[-1][2] += n
+            else:
+                bursts.append([t, t, n])
+        out[domain] = [(b[0], int(b[2])) for b in bursts]
+    return out

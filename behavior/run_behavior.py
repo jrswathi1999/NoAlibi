@@ -25,7 +25,7 @@ from pathlib import Path
 from behavior.capture import CaptureError, sha256_file, start_capture, stop_capture
 from behavior.domain_lookup import categorize, load_endpoints, lookup_domains
 from behavior.mark import ActionMarker, iso, phase_for
-from behavior.parse_pcap import Flow, ParseError, parse_pcap
+from behavior.parse_pcap import Flow, ParseError, domain_bursts, parse_pcap
 
 try:  # Prefer the shared contract once Shri's contracts/models.py exists.
     from contracts.models import Events  # type: ignore[import-not-found]
@@ -222,6 +222,9 @@ def run_behavior(
     doc = build_events(
         run_dir.name, flows, capture, actions, app_name, first_party, update
     )
+    (run_dir / "timing.json").write_text(
+        json.dumps(build_timing(flows, capture, actions), indent=2)
+    )
     if not offline:
         add_lookups(doc, run_dir)
     out = run_dir / "events.json"
@@ -230,6 +233,38 @@ def run_behavior(
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
     _print_summary(doc)
+    return out
+
+
+def build_timing(flows: list[Flow], capture: dict, actions: list[dict]) -> dict:
+    """timing.json: per-domain upload bursts and gap stats (sidecar, not part of events.json)."""
+    from itertools import pairwise
+    from statistics import mean, pstdev
+
+    start = _iso_to_epoch(capture["start"])
+    action_ts = [_iso_to_epoch(a["t"]) for a in actions]
+    out: dict = {}
+    for domain, bursts in domain_bursts(flows).items():
+        rows = [
+            {
+                "t_rel_s": round(t - start, 2),
+                "bytes_out": n,
+                "phase": phase_for(t, start, action_ts),
+            }
+            for t, n in bursts
+        ]
+        idle = [r["t_rel_s"] for r in rows if r["phase"] == "idle"]
+        gaps = [round(b - a, 2) for a, b in pairwise(idle)]
+        stats = {
+            "idle_bursts": len(idle),
+            "idle_gaps_s": gaps,
+            "mean_gap_s": None,
+            "cv": None,
+        }
+        if len(gaps) >= 2 and mean(gaps) > 0:
+            stats["mean_gap_s"] = round(mean(gaps), 2)
+            stats["cv"] = round(pstdev(gaps) / mean(gaps), 3)
+        out[domain] = {"bursts": rows, **stats}
     return out
 
 
