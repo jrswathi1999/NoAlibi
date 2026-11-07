@@ -1,14 +1,18 @@
 # Python
-.venv/
+.venv
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
 
 # Secrets
 .env
 
 # Generated audit output: never commit real runs (they contain network metadata)
 runs/
+data/runs/
+*.pcap
 *.raw.pcapng
 
 # Caches
