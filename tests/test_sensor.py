@@ -190,3 +190,12 @@ def test_phase_rules(tmp_path, monkeypatch, t, expected):
     s.fresh_launch = True
     s.actions.append(UserAction(t=datetime.fromtimestamp(1040.0, UTC)))
     assert s.phase_at(t) == expected
+
+
+def test_local_traffic_is_ignored(tmp_path, monkeypatch):
+    """Electron apps move hundreds of MB between their own processes over localhost; not internet."""
+    s = _session(tmp_path, monkeypatch)
+    lines = ["Notes Helper.4312,0,0,", "tcp4 127.0.0.1:5000<->127.0.0.1:6000,900000000,900000000,"]
+    for t in (1001.0, 1002.0):
+        s._on_sample(parse_lines(lines, t))
+    assert s.flows == {}

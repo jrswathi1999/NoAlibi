@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from contracts.models import CaptureInfo, Event, Events, Lookup, UserAction, save_model
-from sensor.identify import Identifier, Identity
+from sensor.identify import Identifier, Identity, is_public
 from sensor.nettop import Conn, NettopStream, Sample
 from sensor.procs import (
     AppInfo,
@@ -221,8 +221,8 @@ class AuditSession:
                 if c.pid in mine:
                     self._track_self(c)
                     continue
-                if c.pid not in targets:
-                    continue
+                if c.pid not in targets or not is_public(c.remote_ip):
+                    continue  # other apps, and the app talking to itself over localhost/LAN
                 flow = self.flows.get(c.key)
                 if flow is None:
                     pre = self._first_sample
@@ -275,8 +275,6 @@ class AuditSession:
         )
 
     def _track_self(self, c: Conn) -> None:
-        from sensor.identify import is_public
-
         if not is_public(c.remote_ip):
             return
         key = (c.proto, c.local_port, c.remote_ip, c.remote_port)
