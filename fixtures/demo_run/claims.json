@@ -1,0 +1,35 @@
+{
+  "target": "quietnotes",
+  "claims": [
+    {
+      "claim_id": "c1",
+      "type": "local_only",
+      "quote": "Your notes never leave your device.",
+      "url": "https://quietnotes.example/",
+      "source_kind": "marketing",
+      "retrieved_at": 1794070000.0,
+      "page_sha256": "fixture",
+      "method": "manual"
+    },
+    {
+      "claim_id": "c2",
+      "type": "no_tracking",
+      "quote": "No tracking. No analytics. Ever.",
+      "url": "https://quietnotes.example/",
+      "source_kind": "marketing",
+      "retrieved_at": 1794070000.0,
+      "page_sha256": "fixture",
+      "method": "manual"
+    },
+    {
+      "claim_id": "c3",
+      "type": "disclosure",
+      "quote": "We may collect anonymous usage statistics to improve the product.",
+      "url": "https://quietnotes.example/privacy#4-2",
+      "source_kind": "policy",
+      "retrieved_at": 1794070000.0,
+      "page_sha256": "fixture",
+      "method": "manual"
+    }
+  ]
+}

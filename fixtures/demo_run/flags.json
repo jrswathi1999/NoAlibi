@@ -1,0 +1,118 @@
+[
+  {
+    "flag_id": "F1",
+    "rule": "R1_startup_call_home",
+    "severity": "high",
+    "domain": "events.cdp-example.net",
+    "flow_ids": [
+      "f2"
+    ],
+    "burst_ids": [
+      "b4"
+    ],
+    "bytes": 3100,
+    "t": 1794074402.4,
+    "category": "cdp",
+    "headline": "Called a customer data platform 2.1s after launch, before you touched anything",
+    "detail": "First upload 3,100 B at +2.4s during LAUNCH phase.",
+    "contradicts": [
+      "c1",
+      "c2"
+    ],
+    "disclosed_by": null,
+    "canary_correlated": false,
+    "enforceable": true
+  },
+  {
+    "flag_id": "F2",
+    "rule": "R2_heartbeat",
+    "severity": "medium",
+    "domain": "events.cdp-example.net",
+    "flow_ids": [
+      "f2"
+    ],
+    "burst_ids": [
+      "b5",
+      "b6",
+      "b7"
+    ],
+    "bytes": 1227,
+    "t": 1794074432.0,
+    "category": "cdp",
+    "headline": "Phoned home every ~30s while idle",
+    "detail": "3 uploads at +32.0s, +62.1s, +91.9s (mean gap 30.0s, CV 0.01) with no user input.",
+    "contradicts": [
+      "c2"
+    ],
+    "disclosed_by": "c3",
+    "canary_correlated": false,
+    "enforceable": true
+  },
+  {
+    "flag_id": "F3",
+    "rule": "R3_content_sized_upload",
+    "severity": "high",
+    "domain": "events.cdp-example.net",
+    "flow_ids": [
+      "f2"
+    ],
+    "burst_ids": [
+      "b8"
+    ],
+    "bytes": 12288,
+    "t": 1794074524.6,
+    "category": "cdp",
+    "headline": "12.0 KB uploaded to a customer data platform 0.6s after you typed",
+    "detail": "Canary sentence (46 bytes) typed +120.0s to +124.0s. Upload burst 12,288 B at +124.6s.",
+    "contradicts": [
+      "c1"
+    ],
+    "disclosed_by": null,
+    "canary_correlated": true,
+    "enforceable": true
+  },
+  {
+    "flag_id": "F4",
+    "rule": "R1_startup_call_home",
+    "severity": "low",
+    "domain": "o12345.ingest.sentry.example.io",
+    "flow_ids": [
+      "f3"
+    ],
+    "burst_ids": [
+      "b10"
+    ],
+    "bytes": 900,
+    "t": 1794074403.3,
+    "category": "crash_reporting",
+    "headline": "Crash-reporting service contacted at launch",
+    "detail": "900 B upload at +3.3s. No crash occurred.",
+    "contradicts": [
+      "c1"
+    ],
+    "disclosed_by": null,
+    "canary_correlated": false,
+    "enforceable": true
+  },
+  {
+    "flag_id": "F5",
+    "rule": "R5_hidden_destination",
+    "severity": "info",
+    "domain": "cloudflare-ech.com",
+    "flow_ids": [
+      "f6"
+    ],
+    "burst_ids": [
+      "b14"
+    ],
+    "bytes": 640,
+    "t": 1794074405.5,
+    "category": "unknown",
+    "headline": "One connection hid its real destination (Encrypted Client Hello)",
+    "detail": "We can prove a connection was made and how much was sent, but not to whom.",
+    "contradicts": [],
+    "disclosed_by": null,
+    "canary_correlated": false,
+    "enforceable": false
+  }
+]

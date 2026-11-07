@@ -1,0 +1,62 @@
+{
+  "run_id": "2026-11-07T18-00-00Z_quietnotes",
+  "tool_version": "0.1.0+fixture",
+  "target": {
+    "key": "quietnotes",
+    "name": "QuietNotes",
+    "bundle_id": "example.quietnotes",
+    "app_version": "3.2.1",
+    "bundle_path": "/Applications/QuietNotes.app",
+    "process_prefixes": [
+      "QuietNotes"
+    ]
+  },
+  "started_at": 1794074395.0,
+  "ended_at": 1794074560.0,
+  "t0_launch": 1794074400.0,
+  "phases": [
+    {
+      "name": "LAUNCH",
+      "t": 1794074400.0
+    },
+    {
+      "name": "IDLE",
+      "t": 1794074415.0
+    },
+    {
+      "name": "ACTION",
+      "t": 1794074510.0
+    },
+    {
+      "name": "END",
+      "t": 1794074560.0
+    }
+  ],
+  "canary": {
+    "text": "The quarterly numbers are in the blue folder.",
+    "typed_start": 1794074520.0,
+    "typed_end": 1794074524.0
+  },
+  "conditions": {
+    "cold_start": true,
+    "dns_flushed": true,
+    "vpn_active": false,
+    "private_relay": false,
+    "sync_enabled": false,
+    "logged_in": false,
+    "network": "phone-hotspot",
+    "model_preinstalled": null
+  },
+  "host": {
+    "macos": "26.6.1",
+    "hostname_hash": "sha256:fixture"
+  },
+  "capture": {
+    "method": "pktap",
+    "warnings": [
+      "1 flow used Encrypted Client Hello; real destination hidden"
+    ]
+  },
+  "parent_run_id": null,
+  "enforced_domains": []
+}

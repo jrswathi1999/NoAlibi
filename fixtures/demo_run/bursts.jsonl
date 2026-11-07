@@ -1,0 +1,14 @@
+{"burst_id": "b1", "flow_id": "f1", "t_start": 1794074401.2, "t_end": 1794074401.5, "bytes_up": 517, "bytes_down": 0, "phase": "LAUNCH", "is_handshake": true}
+{"burst_id": "b2", "flow_id": "f1", "t_start": 1794074401.4, "t_end": 1794074401.7, "bytes_up": 295, "bytes_down": 2400, "phase": "LAUNCH", "is_handshake": false}
+{"burst_id": "b3", "flow_id": "f2", "t_start": 1794074402.1, "t_end": 1794074402.4, "bytes_up": 517, "bytes_down": 0, "phase": "LAUNCH", "is_handshake": true}
+{"burst_id": "b4", "flow_id": "f2", "t_start": 1794074402.4, "t_end": 1794074402.7, "bytes_up": 3100, "bytes_down": 180, "phase": "LAUNCH", "is_handshake": false}
+{"burst_id": "b5", "flow_id": "f2", "t_start": 1794074432.0, "t_end": 1794074432.3, "bytes_up": 410, "bytes_down": 90, "phase": "IDLE", "is_handshake": false}
+{"burst_id": "b6", "flow_id": "f2", "t_start": 1794074462.1, "t_end": 1794074462.4, "bytes_up": 405, "bytes_down": 90, "phase": "IDLE", "is_handshake": false}
+{"burst_id": "b7", "flow_id": "f2", "t_start": 1794074491.9, "t_end": 1794074492.2, "bytes_up": 412, "bytes_down": 90, "phase": "IDLE", "is_handshake": false}
+{"burst_id": "b8", "flow_id": "f2", "t_start": 1794074524.6, "t_end": 1794074524.9, "bytes_up": 12288, "bytes_down": 310, "phase": "ACTION", "is_handshake": false}
+{"burst_id": "b9", "flow_id": "f3", "t_start": 1794074403.0, "t_end": 1794074403.3, "bytes_up": 520, "bytes_down": 0, "phase": "LAUNCH", "is_handshake": true}
+{"burst_id": "b10", "flow_id": "f3", "t_start": 1794074403.3, "t_end": 1794074403.6, "bytes_up": 900, "bytes_down": 120, "phase": "LAUNCH", "is_handshake": false}
+{"burst_id": "b11", "flow_id": "f4", "t_start": 1794074400.8, "t_end": 1794074401.1, "bytes_up": 120, "bytes_down": 1800, "phase": "LAUNCH", "is_handshake": false}
+{"burst_id": "b12", "flow_id": "f5", "t_start": 1794074401.6, "t_end": 1794074401.9, "bytes_up": 1350, "bytes_down": 48000, "phase": "LAUNCH", "is_handshake": false}
+{"burst_id": "b13", "flow_id": "f6", "t_start": 1794074405.2, "t_end": 1794074405.5, "bytes_up": 517, "bytes_down": 0, "phase": "LAUNCH", "is_handshake": true}
+{"burst_id": "b14", "flow_id": "f6", "t_start": 1794074405.5, "t_end": 1794074405.8, "bytes_up": 640, "bytes_down": 2100, "phase": "LAUNCH", "is_handshake": false}

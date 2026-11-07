@@ -1,0 +1,67 @@
+{
+  "updates.quietnotes.example": {
+    "registrable": "quietnotes.example",
+    "owner": "QuietNotes (vendor)",
+    "category": "update",
+    "summary": "Vendor's own update-check endpoint.",
+    "sources": [],
+    "confidence": "high",
+    "source": "manual",
+    "fetched_at": 1794070100.0
+  },
+  "events.cdp-example.net": {
+    "registrable": "cdp-example.net",
+    "owner": "Example CDP Inc.",
+    "category": "cdp",
+    "summary": "Customer data platform that collects product events for marketing and analytics.",
+    "sources": [
+      {
+        "url": "https://example.org/source-for-cdp-example.net",
+        "title": "Fixture source for cdp-example.net"
+      }
+    ],
+    "confidence": "high",
+    "source": "tavily",
+    "fetched_at": 1794070100.0
+  },
+  "o12345.ingest.sentry.example.io": {
+    "registrable": "sentry.example.io",
+    "owner": "Example Sentry Co.",
+    "category": "crash_reporting",
+    "summary": "Error and crash reporting service.",
+    "sources": [],
+    "confidence": "medium",
+    "source": "seedlist",
+    "fetched_at": 1794070100.0
+  },
+  "ocsp.apple.com": {
+    "registrable": "apple.com",
+    "owner": "Apple Inc.",
+    "category": "os_platform",
+    "summary": "Certificate revocation check performed by macOS, not by the app.",
+    "sources": [],
+    "confidence": "high",
+    "source": "seedlist",
+    "fetched_at": 1794070100.0
+  },
+  "cdn.quietnotes.example": {
+    "registrable": "quietnotes.example",
+    "owner": "QuietNotes (vendor)",
+    "category": "cdn",
+    "summary": "Vendor static asset CDN.",
+    "sources": [],
+    "confidence": "medium",
+    "source": "manual",
+    "fetched_at": 1794070100.0
+  },
+  "cloudflare-ech.com": {
+    "registrable": "cloudflare-ech.com",
+    "owner": "Cloudflare, Inc.",
+    "category": "unknown",
+    "summary": "Encrypted Client Hello front; the real destination behind Cloudflare is hidden.",
+    "sources": [],
+    "confidence": "high",
+    "source": "seedlist",
+    "fetched_at": 1794070100.0
+  }
+}

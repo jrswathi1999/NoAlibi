@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+.env
+
+# Generated audit output: never commit real runs (they contain network metadata)
+runs/
+*.raw.pcapng
+
+# Caches
+data/cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
