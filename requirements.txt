@@ -1,0 +1,12 @@
+pydantic>=2.6
+jinja2>=3.1
+requests>=2.31
+tavily-python>=0.5
+exa_py>=1.0
+rapidfuzz>=3.6
+# Windows capture: map connections to the audited app's processes.
+psutil>=5.9
+# Use the Windows certificate store for HTTPS (antivirus that intercepts TLS breaks certifi).
+truststore>=0.9
+ruff>=0.4
+pytest>=8.0

@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets: API keys live only in .env
+.env
+
+# Audit output: real runs hold network metadata, never commit them
+data/runs/
+*.pcap
+*.pcapng
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
