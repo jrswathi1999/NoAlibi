@@ -1,0 +1,22 @@
+{
+  "_comment": "Public privacy-policy URLs and first-party domains for apps we have checked. Anything else: the user pastes the policy URL in the UI.",
+  "apps": {
+    "com.anthropic.claudefordesktop": {"policy_url": "https://www.anthropic.com/legal/privacy", "first_party": ["anthropic.com", "claude.ai", "claude.com", "claudeusercontent.com"]},
+    "com.microsoft.VSCode": {"policy_url": "https://privacy.microsoft.com/en-us/privacystatement", "first_party": ["microsoft.com", "visualstudio.com", "vscode-cdn.net", "vsassets.io", "live.com", "vscode-unpkg.net", "vscode.dev"]},
+    "dev.kiro.desktop": {"policy_url": "https://aws.amazon.com/privacy/", "first_party": ["kiro.dev", "amazon.com"]},
+    "com.docker.docker": {"policy_url": "https://www.docker.com/legal/docker-privacy-policy/", "first_party": ["docker.com", "docker.io"]},
+    "com.github.GitHubClient": {"policy_url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement", "first_party": ["github.com", "githubusercontent.com", "githubapp.com"]},
+    "com.google.Chrome": {"policy_url": "https://policies.google.com/privacy", "first_party": ["google.com", "googleapis.com", "gstatic.com", "gvt1.com", "gvt2.com", "googleusercontent.com", "youtube.com"]},
+    "com.brave.Browser": {"policy_url": "https://brave.com/privacy/browser/", "first_party": ["brave.com", "bravesoftware.com", "brave.software"]},
+    "com.mongodb.compass": {"policy_url": "https://www.mongodb.com/legal/privacy/privacy-policy", "first_party": ["mongodb.com", "mongodb.net"]},
+    "com.electron.ollama": {"policy_url": "https://ollama.com/privacy", "first_party": ["ollama.com", "ollama.ai"]},
+    "us.zoom.xos": {"policy_url": "https://www.zoom.com/en/trust/privacy/privacy-statement/", "first_party": ["zoom.us", "zoom.com", "zoomgov.com"]},
+    "net.whatsapp.WhatsApp": {"policy_url": "https://www.whatsapp.com/legal/privacy-policy", "first_party": ["whatsapp.com", "whatsapp.net", "wa.me"]},
+    "com.microsoft.Word": {"policy_url": "https://privacy.microsoft.com/en-us/privacystatement", "first_party": ["microsoft.com", "office.com", "office.net", "live.com", "microsoftonline.com", "sharepoint.com"]},
+    "com.paloaltonetworks.GlobalProtect.client": {"policy_url": "https://www.paloaltonetworks.com/legal-notices/privacy", "first_party": ["paloaltonetworks.com"]},
+    "com.apple.Safari": {"policy_url": "https://www.apple.com/legal/privacy/en-ww/", "first_party": ["apple.com", "icloud.com", "apple-cloudkit.com", "mzstatic.com", "aaplimg.com", "cdn-apple.com"]},
+    "com.apple.iWork.Keynote": {"policy_url": "https://www.apple.com/legal/privacy/en-ww/", "first_party": ["apple.com", "icloud.com", "apple-cloudkit.com", "mzstatic.com", "aaplimg.com", "cdn-apple.com"]},
+    "com.apple.iWork.Numbers": {"policy_url": "https://www.apple.com/legal/privacy/en-ww/", "first_party": ["apple.com", "icloud.com", "apple-cloudkit.com", "mzstatic.com", "aaplimg.com", "cdn-apple.com"]},
+    "com.apple.iWork.Pages": {"policy_url": "https://www.apple.com/legal/privacy/en-ww/", "first_party": ["apple.com", "icloud.com", "apple-cloudkit.com", "mzstatic.com", "aaplimg.com", "cdn-apple.com"]}
+  }
+}
