@@ -1,0 +1,63 @@
+{
+  "run_id": "20261107-201500-notesapp",
+  "findings": [
+    {
+      "id": "f1",
+      "severity": "red",
+      "rule": "R1_undisclosed_ai_provider",
+      "title": "Policy never names OpenAI, but the app sent 12 KB to api.openai.com",
+      "claim_ids": ["c1"],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f2",
+      "severity": "red",
+      "rule": "R2_local_promise_broken",
+      "title": "Policy says your data stays on your device, but 12 KB went to api.openai.com right after you used the app",
+      "claim_ids": ["c2"],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f3",
+      "severity": "amber",
+      "rule": "R3_background_telemetry",
+      "title": "api.mixpanel.com was contacted 3 times while idle, about every 10 s",
+      "claim_ids": [],
+      "event_ids": ["e5", "e6", "e7"]
+    },
+    {
+      "id": "f4",
+      "severity": "amber",
+      "rule": "R4_content_upload_suspicion",
+      "title": "12 KB uploaded to api.openai.com within 5 s of your action",
+      "claim_ids": [],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f5",
+      "severity": "amber",
+      "rule": "R5_silent_on_training",
+      "title": "The app sends data to OpenAI, but the policy never says whether your data trains AI models",
+      "claim_ids": [],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f6",
+      "severity": "info",
+      "rule": "R6_unknown_recipient",
+      "title": "Unknown recipient cdn.xyz-metrics.io: xyz-metrics.io appears to be a small product analytics vendor.",
+      "claim_ids": [],
+      "event_ids": ["e8"]
+    }
+  ],
+  "scorecard": {
+    "data_stays_local": "yes",
+    "names_ai_provider": "no",
+    "trains_on_user_data": "unclear",
+    "retention_stated": "yes",
+    "ai_opt_out": "yes",
+    "shares_with_third_parties": "yes"
+  },
+  "summary": "The policy promises your notes stay on your device and never names an AI company, yet the app sent 12 KB to OpenAI right after you used its AI feature.",
+  "evidence_sha256": "3b1f2e4d5c6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e"
+}

@@ -1,0 +1,63 @@
+{
+  "run_id": "20261107-201500-notesapp",
+  "app": {
+    "name": "NotesApp",
+    "policy_url": "https://notesapp.com/privacy",
+    "subprocessor_url": "https://notesapp.com/subprocessors",
+    "fetched_at": "2026-11-07T20:15:03Z",
+    "policy_sha256": "9f2c4e1a7b3d5c6e8f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6"
+  },
+  "model": "qwen2.5:7b",
+  "claims": [
+    {
+      "id": "c1",
+      "type": "names_ai_provider",
+      "value": "no",
+      "providers": [],
+      "quote": "We may share information with trusted service providers.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c2",
+      "type": "data_stays_local",
+      "value": "yes",
+      "providers": [],
+      "quote": "Your notes are stored locally on your device.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c3",
+      "type": "retention_stated",
+      "value": "yes",
+      "providers": [],
+      "quote": "We keep AI request logs for 30 days.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "fuzzy"
+    },
+    {
+      "id": "c4",
+      "type": "ai_opt_out",
+      "value": "yes",
+      "providers": [],
+      "quote": "You can turn off AI features at any time in Settings.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c5",
+      "type": "shares_with_third_parties",
+      "value": "yes",
+      "providers": [],
+      "quote": "We may share information with trusted service providers.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    }
+  ]
+}
