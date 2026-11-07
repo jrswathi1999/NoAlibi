@@ -133,6 +133,18 @@ const GOOD_ANSWER = {
   ai_opt_out: "yes",
   shares_with_third_parties: "no",
 };
+// One plain sentence per answer, so nobody has to decode a tick or a cross. {app} = app name.
+const STATEMENT = {
+  data_stays_local: { yes: "{app} promises your data stays on your device.", no: "{app} does NOT promise to keep your data on your device. It can send it to its servers.", unclear: "The policy doesn't say whether your data stays on your device." },
+  names_ai_provider: { yes: "{app} names the AI companies it uses.", no: "{app} does NOT name which AI company gets your data.", unclear: "The policy doesn't say which AI companies it uses." },
+  trains_on_user_data: { yes: "{app} CAN use your data to train or improve AI.", no: "{app} says it does NOT use your data to train AI.", unclear: "The policy doesn't clearly say whether your data trains AI." },
+  retention_stated: { yes: "{app} says how long it keeps your data.", no: "{app} does NOT give a clear time limit for keeping your data.", unclear: "The policy doesn't say how long your data is kept." },
+  ai_opt_out: { yes: "You CAN opt out of {app} using your data for AI.", no: "The policy does NOT offer a way to opt out of AI use.", unclear: "The policy doesn't say whether you can opt out of AI use." },
+  shares_with_third_parties: { yes: "{app} DOES share data with other companies.", no: "{app} says it does NOT share your data with other companies.", unclear: "The policy doesn't say whether it shares data with other companies." },
+};
+const statement = (k, val, appName) => (STATEMENT[k]?.[val] || STATEMENT[k]?.unclear || "").replaceAll("{app}", appName);
+const toneLabel = (tone) => (tone === "yes" ? "Good for you" : tone === "no" ? "Not good for you" : "Unclear");
+
 const VERDICT = {
   NO_ALIBI: { word: "No alibi", icon: "x", line: "It broke a promise in its privacy policy." },
   QUESTIONABLE: { word: "Worth a look", icon: "alert", line: "No broken promise, but something you may want to know." },
@@ -882,28 +894,30 @@ async function renderVerdict(runId, tab = "verdict") {
   // scorecard
   const card = d.findings?.scorecard || {};
   pv.append(h("h2", { class: "tab-h" }, "What the privacy policy says"),
-    h("div", { class: "scorecard", role: "list" }, Object.entries(CLAIM_Q).map(([k, label]) => {
+    h("div", { class: "statements", role: "list" }, Object.keys(CLAIM_Q).map((k) => {
       const val = card[k] || "unclear";
       const tone = val === "unclear" ? "unclear" : val === GOOD_ANSWER[k] ? "yes" : "no";
-      const word = val === "unclear" ? "Doesn't say" : val === "yes" ? "Yes" : "No";
-      return h("div", { class: "score", role: "listitem" },
+      return h("div", { class: `statement ${tone}`, role: "listitem" },
         h("span", { class: `ic ${tone}`, "aria-hidden": "true" }, icon(tone === "yes" ? "check" : tone === "no" ? "x" : "q")),
-        h("div", {}, h("div", { class: "k" }, label), h("div", { class: "v" }, word, h("span", { class: "sr-only" }, tone === "yes" ? " (good for you)" : tone === "no" ? " (not good for you)" : ""))));
+        h("span", { class: "statement-text" }, statement(k, val, app.name)),
+        h("span", { class: `tone-label ${tone}` }, toneLabel(tone)));
     })),
-    h("p", { class: "hint" }, "Green is good for your privacy, red is not, amber means the policy is vague. See the exact sentences under “Promises”."));
+    h("p", { class: "hint" }, "Open “Promises” to read the exact sentence from the policy behind each line."));
 
   // ================= Promises tab
   const pp = panelEls.promises;
-  pp.append(h("p", { class: "tab-intro" }, "A local AI on this Mac read the privacy policy and answered six questions. Every quote below was checked word for word against the real policy page."));
-  for (const [k, label] of Object.entries(CLAIM_Q)) {
+  pp.append(h("p", { class: "tab-intro" }, "A local AI on this Mac read the privacy policy and answered six questions. Each line says what the app does in plain words; underneath is the exact sentence from the policy, checked word for word."));
+  for (const k of Object.keys(CLAIM_Q)) {
     const c = claims.find((x) => x.type === k);
-    const tone = !c || c.value === "unclear" ? "unclear" : c.value === GOOD_ANSWER[k] ? "yes" : "no";
-    pp.append(h("article", { class: "promise" },
+    const val = c ? c.value : "unclear";
+    const tone = val === "unclear" ? "unclear" : val === GOOD_ANSWER[k] ? "yes" : "no";
+    pp.append(h("article", { class: `promise ${tone}` },
       h("div", { class: "promise-head" }, h("span", { class: `ic ${tone}`, "aria-hidden": "true" }, icon(tone === "yes" ? "check" : tone === "no" ? "x" : "q")),
-        h("h3", {}, label), h("span", { class: "promise-ans" }, !c ? "Not addressed" : c.value === "yes" ? "Yes" : c.value === "no" ? "No" : "Doesn't say clearly")),
-      c ? h("q", {}, c.quote) : h("p", { class: "muted" }, "The policy doesn't say anything we could quote about this."),
+        h("h3", {}, statement(k, val, app.name)), h("span", { class: `tone-label ${tone}` }, toneLabel(tone))),
+      c ? h("div", { class: "promise-quote" }, h("div", { class: "case-k" }, "What the policy says, word for word"), h("q", {}, c.quote))
+        : h("p", { class: "muted" }, "We couldn't find a sentence in the policy about this."),
       c ? h("div", { class: "src" }, h("span", { class: "tag" }, c.match === "exact" ? "Exact quote" : "Closest sentence in the policy"),
-        c.providers?.length ? h("span", { class: "tag policy" }, `Names: ${c.providers.join(", ")}`) : null,
+        c.providers?.length ? h("span", { class: "tag policy" }, `Companies named: ${c.providers.join(", ")}`) : null,
         h("a", { href: c.source_url, target: "_blank", rel: "noopener noreferrer" }, "Open the policy")) : null,
     ));
   }
