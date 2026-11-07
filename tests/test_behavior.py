@@ -177,3 +177,47 @@ def test_phase_rules():
         phase_for(1039.9, start, actions) == "idle"
     )  # before the click is not caused by it
     assert phase_for(1005.0, start, [1003.0]) == "user_action"
+
+
+def test_build_events_matches_contract_and_labels_reused_connection():
+    from behavior.mark import iso
+    from behavior.parse_pcap import Flow
+    from behavior.run_behavior import build_events
+
+    start = 1794100000.0  # capture start
+    capture = {
+        "start": iso(start),
+        "end": iso(start + 90),
+        "interface": "veth-host",
+        "pcap_sha256": "ab" * 32,
+    }
+    actions = [{"t": iso(start + 40), "label": "used AI"}]  # +40 s
+    # Connection opened at startup (+2 s, small), then reused right after the click (+42 s, 12 KB).
+    reused = Flow(
+        ip="162.159.140.245",
+        port=443,
+        proto="tcp",
+        first_t=start + 2,
+        last_t=start + 43,
+    )
+    reused.domain, reused.tls, reused.bytes_out = "api.openai.com", True, 12534
+    reused.out_bytes_by_t = [(start + 2, 500), (start + 42.1, 12034)]
+    idle = Flow(
+        ip="5.5.5.5", port=443, proto="tcp", first_t=start + 60, last_t=start + 61
+    )
+    idle.domain, idle.tls, idle.bytes_out = "mystery.example", True, 300
+    idle.out_bytes_by_t = [(start + 60, 300)]
+
+    doc = build_events(
+        "20261107-154640-notesapp", [idle, reused], capture, actions, "NotesApp"
+    )
+    e1, e2 = doc["events"]
+    assert (e1["id"], e1["domain"], e1["phase"], e1["category"], e1["owner"]) == (
+        "e1",
+        "api.openai.com",
+        "user_action",
+        "ai_provider",
+        "OpenAI",
+    )
+    assert e1["t_rel_s"] == 42.1
+    assert (e2["phase"], e2["category"], e2["lookup"]) == ("idle", "unknown", None)

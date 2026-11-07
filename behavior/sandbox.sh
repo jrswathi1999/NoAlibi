@@ -96,6 +96,15 @@ run() {
 }
 
 down() {
+  # Stop anything still running inside the sandbox first (apps that daemonize
+  # would otherwise keep running with a dead network).
+  local pids; pids=$(ip netns pids "$NS" 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    kill $pids 2>/dev/null || true
+    sleep 1
+    pids=$(ip netns pids "$NS" 2>/dev/null || true)
+    [[ -z "$pids" ]] || kill -9 $pids 2>/dev/null || true
+  fi
   ip netns del "$NS" 2>/dev/null || true      # also removes veth-ns and its peer
   ip link del "$VH" 2>/dev/null || true
   del_rule nat "${nat_rule[@]}"
