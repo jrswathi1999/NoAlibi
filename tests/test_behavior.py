@@ -300,3 +300,33 @@ def test_heartbeat_on_one_kept_alive_connection_shows_in_timing():
     assert tm["idle_bursts"] == 3
     assert [b["bytes_out"] for b in tm["bursts"]] == [517, 410, 410, 410]
     assert tm["mean_gap_s"] == 19.95 and tm["cv"] < 0.05
+
+
+def test_ss_parsing_keeps_only_app_sockets():
+    from behavior.host_capture import parse_ss
+
+    lines = [
+        'tcp ESTAB 0 0 192.168.64.5:51234 162.159.140.245:443 users:(("notesapp",pid=4312,fd=31))',
+        'tcp ESTAB 0 0 192.168.64.5:51240 142.250.1.1:443 users:(("firefox",pid=999,fd=12))',
+        'udp UNCONN 0 0 0.0.0.0:5353 0.0.0.0:* users:(("notesapp",pid=4312,fd=40))',
+        'tcp ESTAB 0 0 [::ffff:192.168.64.5]:51300 [::ffff:3.3.3.3]:443 users:(("notesapp",pid=4400,fd=9))',
+    ]
+    assert parse_ss("\n".join(lines), {4312, 4400}) == {
+        ("192.168.64.5", 51234, "162.159.140.245", 443),
+        ("::ffff:192.168.64.5", 51300, "::ffff:3.3.3.3", 443),
+    }
+
+
+def test_host_mode_filters_packets_to_app_sockets():
+    host = "192.168.64.5"
+    lines = [
+        tcp(
+            1.0, host, "162.159.140.245", 51234, 443, 900, sni="api.openai.com", hs="1"
+        ),
+        tcp(
+            1.1, host, "142.250.1.1", 51240, 443, 700, sni="www.google.com", hs="1"
+        ),  # browser
+    ]
+    pk = [p for p in (parse_row(x) for x in lines) if p]
+    flows = build_flows(pk, {host}, {(host, 51234, "::ffff:162.159.140.245", 443)})
+    assert [f.domain for f in flows] == ["api.openai.com"]

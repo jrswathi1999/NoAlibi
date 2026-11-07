@@ -113,8 +113,8 @@ def parse_row(line: str) -> Packet | None:
         ts = float(t)
     except ValueError:
         return None
-    src = _first(ip_src) or _first(v6_src)
-    dst = _first(ip_dst) or _first(v6_dst)
+    src = _norm(_first(ip_src) or _first(v6_src))
+    dst = _norm(_first(ip_dst) or _first(v6_dst))
     if not src or not dst:
         return None
     if tsp or tdp:
@@ -141,9 +141,22 @@ def parse_row(line: str) -> Packet | None:
     )
 
 
-def build_flows(packets: list[Packet], local_ips: set[str] | None = None) -> list[Flow]:
-    """Group packets into flows keyed by remote (IP, port)."""
-    local = local_ips or {SANDBOX_IP}
+def _norm(ip: str) -> str:
+    return ip.removeprefix("::ffff:")
+
+
+def build_flows(
+    packets: list[Packet],
+    local_ips: set[str] | None = None,
+    sockets: set[tuple[str, int, str, int]] | None = None,
+) -> list[Flow]:
+    """Group packets into flows keyed by remote (IP, port).
+
+    `sockets` (host-capture fallback): only packets on these
+    (local_ip, local_port, remote_ip, remote_port) sockets are kept.
+    """
+    local = {_norm(i) for i in (local_ips or {SANDBOX_IP})}
+    allowed = {(lp, _norm(rip), rp) for _, lp, rip, rp in sockets or set()}
     ip_to_domain: dict[str, str] = {}
     flows: dict[tuple[str, int], Flow] = {}
 
@@ -159,6 +172,10 @@ def build_flows(packets: list[Packet], local_ips: set[str] | None = None) -> lis
             continue
         if not p.proto or rport is None or rport in IGNORED_PORTS:
             continue
+        if sockets is not None:
+            lport = p.sport if outbound else p.dport
+            if (lport, remote, rport) not in allowed:
+                continue
         key = (remote, rport)
         f = flows.get(key)
         if f is None:
@@ -203,10 +220,14 @@ def run_tshark(pcap: Path) -> list[str]:
     return res.stdout.splitlines()
 
 
-def parse_pcap(pcap: Path, local_ips: set[str] | None = None) -> list[Flow]:
+def parse_pcap(
+    pcap: Path,
+    local_ips: set[str] | None = None,
+    sockets: set[tuple[str, int, str, int]] | None = None,
+) -> list[Flow]:
     rows = run_tshark(pcap)
     packets = [p for p in (parse_row(r) for r in rows) if p is not None]
-    return build_flows(packets, local_ips)
+    return build_flows(packets, local_ips, sockets)
 
 
 BURST_GAP_S = 0.3  # outbound packets closer than this belong to the same upload burst

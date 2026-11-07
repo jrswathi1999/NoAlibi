@@ -24,6 +24,7 @@ from pathlib import Path
 
 from behavior.capture import CaptureError, sha256_file, start_capture, stop_capture
 from behavior.domain_lookup import categorize, load_endpoints, lookup_domains
+from behavior.host_capture import SocketWatcher, launch_as_user, local_ips
 from behavior.mark import ActionMarker, iso, phase_for
 from behavior.parse_pcap import Flow, ParseError, domain_bursts, parse_pcap
 
@@ -130,8 +131,15 @@ def live_capture(
     seconds: float,
     interface: str = "veth-host",
     auto_marks: list[float] | None = None,
+    mode: str = "netns",
+    proc_match: str | None = None,
 ) -> tuple[dict, list[dict], list[str]]:
-    """Run `cmd` in the sandbox for `seconds` while capturing. Always tears the sandbox down."""
+    """Run `cmd` for `seconds` while capturing. Always tears the sandbox down.
+
+    mode "netns": app inside the sandbox, capture on veth-host (default).
+    mode "host":  fallback for GUI apps that will not start in the netns; capture on
+                  every interface and keep only sockets owned by the app (sockets.json).
+    """
     if os.geteuid() != 0:
         raise BehaviorError(
             "live capture needs root: sudo -E .venv/bin/python -m behavior.run_behavior ..."
@@ -139,16 +147,24 @@ def live_capture(
     pcap = run_dir / "run.pcap"
     marker = ActionMarker()
     warnings: list[str] = []
-    tcpdump = app = None
+    tcpdump = app = watcher = None
+    if mode == "host":
+        interface = "any"
     # SIGTERM/SIGHUP -> SystemExit, so the finally block still tears everything down.
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda *_: sys.exit(130))
     try:
         _sandbox("down")  # clear leftovers from a crashed run
-        _sandbox("up")
+        if mode == "netns":
+            _sandbox("up")
         tcpdump = start_capture(pcap, interface)
         start = time.time()
-        app = subprocess.Popen([str(SANDBOX), "run", cmd], start_new_session=True)
+        if mode == "netns":
+            app = subprocess.Popen([str(SANDBOX), "run", cmd], start_new_session=True)
+        else:
+            app = launch_as_user(cmd)
+            watcher = SocketWatcher(app.pid, proc_match)
+            watcher.start()
         print(
             f"capturing for {seconds:.0f}s. Press Enter to mark a user action, Ctrl+C to stop early."
         )
@@ -164,6 +180,11 @@ def live_capture(
         end = time.time()
     finally:
         marker.stop()
+        if watcher is not None:
+            watcher.stop()
+            (run_dir / "sockets.json").write_text(
+                json.dumps(sorted(watcher.sockets), indent=2)
+            )
         if app is not None and app.poll() is None:
             try:
                 os.killpg(app.pid, signal.SIGTERM)
@@ -195,6 +216,8 @@ def run_behavior(
     interface: str = "veth-host",
     auto_marks: list[float] | None = None,
     offline: bool = False,
+    mode: str = "netns",
+    proc_match: str | None = None,
 ) -> Path:
     """Produce run_dir/events.json. Returns its path. Raises BehaviorError with a clear message."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -213,12 +236,21 @@ def run_behavior(
         if not cmd:
             raise BehaviorError("--cmd is required for a live capture")
         capture, actions, warnings = live_capture(
-            cmd, run_dir, seconds, interface, auto_marks
+            cmd, run_dir, seconds, interface, auto_marks, mode, proc_match
         )
         (run_dir / "capture.json").write_text(json.dumps(capture, indent=2))
         (run_dir / "actions.json").write_text(json.dumps(actions, indent=2))
 
-    flows = parse_pcap(pcap)
+    sockets_path = run_dir / "sockets.json"
+    if sockets_path.exists():  # host-mode run: keep only the app's own sockets
+        sockets = {tuple(x) for x in json.loads(sockets_path.read_text())}
+        flows = parse_pcap(pcap, local_ips() | {s[0] for s in sockets}, sockets)
+        if not sockets:
+            warnings.append(
+                "host mode saw no sockets owned by the app (try --proc-match)"
+            )
+    else:
+        flows = parse_pcap(pcap)
     doc = build_events(
         run_dir.name, flows, capture, actions, app_name, first_party, update
     )
@@ -326,6 +358,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="skip Tavily/Exa lookups (nothing leaves)",
     )
+    ap.add_argument(
+        "--mode",
+        choices=["netns", "host"],
+        default="netns",
+        help="host = fallback when the GUI app will not open inside the netns",
+    )
+    ap.add_argument(
+        "--proc-match",
+        help="host mode: also track processes whose command line contains this",
+    )
     a = ap.parse_args(argv)
     try:
         run_behavior(
@@ -339,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
             a.interface,
             a.auto_mark,
             a.offline,
+            a.mode,
+            a.proc_match,
         )
     except (BehaviorError, CaptureError, ParseError) as e:
         print(f"error: {e}", file=sys.stderr)
