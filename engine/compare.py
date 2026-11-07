@@ -21,6 +21,7 @@ from contracts.models import (
     load_model,
     save_model,
 )
+from engine.hashlog import evidence_sha256
 from engine.rules import ALL_RULES
 
 log = logging.getLogger("engine.compare")
@@ -90,7 +91,7 @@ def compare(run_dir: Path) -> Findings:
         findings=findings,
         scorecard=build_scorecard(claims),
         summary=fallback_summary(claims.app.name, findings),
-        evidence_sha256="",
+        evidence_sha256=evidence_sha256(run_dir),
     )
 
 

@@ -192,3 +192,15 @@ def test_run_compare_writes_valid_file(tmp_path):
 def test_run_compare_missing_input(tmp_path):
     with pytest.raises(ValueError, match="not found"):
         run_compare(tmp_path)
+
+
+def test_run_compare_stamps_evidence_hash(tmp_path):
+    from engine.hashlog import evidence_sha256
+
+    run_dir = tmp_path / "20261107-201500-notesapp"
+    run_dir.mkdir()
+    shutil.copy(FIXTURES / "claims.sample.json", run_dir / "claims.json")
+    shutil.copy(FIXTURES / "events.sample.json", run_dir / "events.json")
+    findings = load_model(run_compare(run_dir), Findings)
+    assert findings.evidence_sha256 == evidence_sha256(run_dir)
+    assert len(findings.evidence_sha256) == 64
