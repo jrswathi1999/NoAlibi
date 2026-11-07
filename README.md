@@ -22,6 +22,7 @@ Built at HACK1984 (Nov 7–8, 2026). Tracks: **Privacy-First**, **Surge (Tavily/
 make setup                  # venv + requirements + .env from .env.example
 ollama pull qwen2.5:7b      # the local model that reads policies (llama3.2:3b also works)
 make app                    # opens http://127.0.0.1:5050
+python -m app.audit --rejudge   # re-score saved case files with the current rules
 ```
 
 1. **Pick an app** from your installed apps (icons, "running" and "policy known" badges).
@@ -38,10 +39,11 @@ Only the domain name is sent.
 | Screen | What it shows |
 |---|---|
 | **Live wiretap** | A constellation: the app in the center, every destination placed by kind (AI providers, analytics, crash reporting, the app's own servers, CDNs). Packets fly out as bytes leave. Live totals, including **No Alibi's own traffic to third parties**. Meanwhile the policy is read, and each promise appears with its verified quote. |
-| **The case board** | Promises (left), findings (middle), evidence (right), joined by red strings. Hover a finding to light up only its promise and its connections. |
-| **Timeline** | Every upload burst over time, with the launch window and your marked actions. |
-| **Footprint** | Every network action No Alibi took (DNS lookups of catalog domains, certificate checks, the policy download), and what the sensor saw No Alibi send. |
-| **Sealed evidence** | SHA-256 over claims + events + the raw sensor log, a manifest of every file, and a downloadable `.zip`. A printable one-page report. |
+| **Verdict tab** | The verdict in one sentence. Each broken promise shown as *the promise* → *what actually happened*. If nothing is wrong: "No broken promises found". An at-a-glance count and the six policy answers (green = good for you). |
+| **Promises tab** | The six questions with the exact policy sentence for each. |
+| **Where your data went** | Every service grouped by the company behind it, with what it does in plain words and a Normal / Worth knowing / Check label. Technical details are folded away. |
+| **Step by step** | What the app did while starting, right after you used the AI feature, and the rest of the time. |
+| **About this check** | Everything No Alibi itself did on the internet, the SHA-256 fingerprint, the evidence download, and what we can't see. |
 
 ## How it works
 
@@ -78,9 +80,9 @@ AI request sent over an already-open connection still lines up with the moment y
 | Rule | Severity | Fires when |
 |---|---|---|
 | R1 undisclosed AI provider | red | an AI company receives data but the policy never names it |
-| R2 local promise broken | red | the policy says data stays on your device, yet more than 2 KB leaves for a third party right after you act |
-| R3 background telemetry | amber | 3+ clockwork-regular bursts to one domain while idle |
-| R4 content-sized upload | amber | more than 5 KB to one domain within 5 s of your action |
+| R2 local promise broken | red | the policy says data stays on your device, yet more than 2 KB goes to an AI, analytics, ad or crash-reporting company right after you act |
+| R3 background telemetry | amber | 3+ clockwork-regular check-ins with an analytics, ad, AI or crash-reporting company while idle |
+| R4 content-sized upload | amber | more than 5 KB to one such company within 5 s of your action |
 | R5 silent on training | amber | it talks to an AI company and the policy is unclear on training |
 | R6 unknown recipient | info | a destination we couldn't confirm |
 
@@ -90,9 +92,12 @@ AI request sent over an already-open connection still lines up with the moment y
   near-match is replaced by the real sentence; anything else is dropped (`dropped_claims.json`).
 - **AI providers are detected without a model.** `names_ai_provider` is a deterministic search, so
   it can't hallucinate a company.
-- **Destinations carry a confidence.** *confirmed* (DNS and certificate agree), *likely*, *possible*
-  (a shared CDN address; we bundle CloudFront, Cloudflare and Fastly's published ranges), *weak*.
-  **A red finding resting only on a *possible* match is downgraded to amber and labelled.**
+- **Normal traffic is never flagged.** The app's own servers, update checks, CDNs, macOS services and
+  servers we couldn't identify can't trigger a finding. Only AI, analytics, advertising and
+  crash-reporting companies can.
+- **Destinations carry a confidence.** *verified* (address and certificate agree), *probable*, *unsure*
+  (a shared CDN address; we bundle CloudFront, Cloudflare and Fastly's published ranges).
+  **A finding that rests only on an unsure match never counts toward the verdict.**
 - **The summary can't invent.** It sees only the findings, and it's rejected if it names a company or
   domain that isn't in them, or claims a promise the policy doesn't make.
 - **We don't overstate.** "An upload large enough to contain what you typed," never "it sent your note."
@@ -108,7 +113,7 @@ and connections that open and close inside one 1-second sample. The verdict page
 | App | Verdict | Why |
 |---|---|---|
 | Ollama 0.33 | **ALIBI HOLDS** | Policy: "Your data stays on your machine." A prompt was run during the audit and **0 bytes** left the app. |
-| Google Chrome 156 | **QUESTIONABLE** | A burst to a CloudFront address within 5 s of the marked action. Chrome traffic that DNS matched to a DeepSeek domain was held at *possible* (shared CDN address), not accused. |
+| Google Chrome 156 | **ALIBI HOLDS** | Only its own servers, hosting and unidentified servers. Traffic that matched a DeepSeek domain on a shared CloudFront address was held as *unsure* and not counted. |
 
 ## Repo layout
 
