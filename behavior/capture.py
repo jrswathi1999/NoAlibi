@@ -43,9 +43,7 @@ def start_capture(
         raise CaptureError(f"pcap path must end in .pcap (AppArmor): {pcap}")
     pcap.parent.mkdir(parents=True, exist_ok=True)
     cmd = ["tcpdump", "-i", interface, "-n", "-U", "-Z", "root", "-w", str(pcap)]
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True
-    )
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     deadline = time.monotonic() + ready_timeout
     assert proc.stderr is not None
     while time.monotonic() < deadline:
@@ -56,9 +54,7 @@ def start_capture(
         if "listening on" in line:
             return proc
     stop_capture(proc)
-    raise CaptureError(
-        f"tcpdump did not start listening on {interface} within {ready_timeout}s"
-    )
+    raise CaptureError(f"tcpdump did not start listening on {interface} within {ready_timeout}s")
 
 
 def stop_capture(proc: subprocess.Popen, timeout: float = 5.0) -> list[str]:
@@ -72,7 +68,5 @@ def stop_capture(proc: subprocess.Popen, timeout: float = 5.0) -> list[str]:
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
-        warnings.append(
-            "tcpdump did not stop on SIGINT; killed (last packets may be lost)"
-        )
+        warnings.append("tcpdump did not stop on SIGINT; killed (last packets may be lost)")
     return warnings

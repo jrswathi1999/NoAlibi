@@ -69,9 +69,7 @@ class Flow:
     sni: str = ""
     domain: str = ""
     domain_source: str = "none"  # sni | dns | none
-    out_times: list[float] = field(
-        default_factory=list
-    )  # packets with payload, outbound
+    out_times: list[float] = field(default_factory=list)  # packets with payload, outbound
     out_bytes_by_t: list[tuple[float, int]] = field(default_factory=list)
 
 
@@ -179,9 +177,7 @@ def build_flows(
         key = (remote, rport)
         f = flows.get(key)
         if f is None:
-            f = flows[key] = Flow(
-                ip=remote, port=rport, proto=p.proto, first_t=p.t, last_t=p.t
-            )
+            f = flows[key] = Flow(ip=remote, port=rport, proto=p.proto, first_t=p.t, last_t=p.t)
         f.last_t = p.t
         if outbound:
             f.bytes_out += p.payload

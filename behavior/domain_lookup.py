@@ -224,6 +224,5 @@ def lookup_domains(
         cache_path.write_text(json.dumps(cache, indent=2))
 
     return {
-        d: (cache.get(registrable_domain(d)) if is_lookup_candidate(d) else None)
-        for d in domains
+        d: (cache.get(registrable_domain(d)) if is_lookup_candidate(d) else None) for d in domains
     }

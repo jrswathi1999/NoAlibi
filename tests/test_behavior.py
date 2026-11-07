@@ -173,9 +173,7 @@ def test_phase_rules():
     assert phase_for(1042.0, start, actions) == "user_action"
     assert phase_for(1045.0, start, actions) == "user_action"
     assert phase_for(1045.1, start, actions) == "idle"
-    assert (
-        phase_for(1039.9, start, actions) == "idle"
-    )  # before the click is not caused by it
+    assert phase_for(1039.9, start, actions) == "idle"  # before the click is not caused by it
     assert phase_for(1005.0, start, [1003.0]) == "user_action"
 
 
@@ -202,15 +200,11 @@ def test_build_events_matches_contract_and_labels_reused_connection():
     )
     reused.domain, reused.tls, reused.bytes_out = "api.openai.com", True, 12534
     reused.out_bytes_by_t = [(start + 2, 500), (start + 42.1, 12034)]
-    idle = Flow(
-        ip="5.5.5.5", port=443, proto="tcp", first_t=start + 60, last_t=start + 61
-    )
+    idle = Flow(ip="5.5.5.5", port=443, proto="tcp", first_t=start + 60, last_t=start + 61)
     idle.domain, idle.tls, idle.bytes_out = "mystery.example", True, 300
     idle.out_bytes_by_t = [(start + 60, 300)]
 
-    doc = build_events(
-        "20261107-154640-notesapp", [idle, reused], capture, actions, "NotesApp"
-    )
+    doc = build_events("20261107-154640-notesapp", [idle, reused], capture, actions, "NotesApp")
     e1, e2 = doc["events"]
     assert (e1["id"], e1["domain"], e1["phase"], e1["category"], e1["owner"]) == (
         "e1",
@@ -248,9 +242,7 @@ def test_lookup_sends_only_registrable_domains_and_logs_them(tmp_path):
     log = (tmp_path / "outbound_queries.log").read_text()
     assert "user-8812" not in log and "8.8.4.4" not in log and log.count("\n") == 2
 
-    lookup_domains(
-        domains, tmp_path, [("tavily", fake_tavily)]
-    )  # cached: no new queries
+    lookup_domains(domains, tmp_path, [("tavily", fake_tavily)])  # cached: no new queries
     assert len(sent) == 2
 
 
@@ -320,12 +312,8 @@ def test_ss_parsing_keeps_only_app_sockets():
 def test_host_mode_filters_packets_to_app_sockets():
     host = "192.168.64.5"
     lines = [
-        tcp(
-            1.0, host, "162.159.140.245", 51234, 443, 900, sni="api.openai.com", hs="1"
-        ),
-        tcp(
-            1.1, host, "142.250.1.1", 51240, 443, 700, sni="www.google.com", hs="1"
-        ),  # browser
+        tcp(1.0, host, "162.159.140.245", 51234, 443, 900, sni="api.openai.com", hs="1"),
+        tcp(1.1, host, "142.250.1.1", 51240, 443, 700, sni="www.google.com", hs="1"),  # browser
     ]
     pk = [p for p in (parse_row(x) for x in lines) if p]
     flows = build_flows(pk, {host}, {(host, 51234, "::ffff:162.159.140.245", 443)})

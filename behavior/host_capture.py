@@ -19,9 +19,7 @@ _USERS_RE = re.compile(r"pid=(\d+)")
 
 
 def local_ips() -> set[str]:
-    out = subprocess.run(
-        ["ip", "-o", "addr"], check=False, capture_output=True, text=True
-    ).stdout
+    out = subprocess.run(["ip", "-o", "addr"], check=False, capture_output=True, text=True).stdout
     ips = set()
     for line in out.splitlines():
         parts = line.split()
@@ -44,20 +42,13 @@ def process_tree(root_pids: set[int], name_match: str | None = None) -> set[int]
             children.setdefault(ppid, []).append(int(d.name))
             if name_match:
                 cmdlines[int(d.name)] = (
-                    (d / "cmdline")
-                    .read_bytes()
-                    .replace(b"\0", b" ")
-                    .decode(errors="replace")
+                    (d / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
                 )
         except (OSError, ValueError, IndexError):
             continue
     found, stack = set(), list(root_pids)
     if name_match:
-        stack += [
-            pid
-            for pid, cmd in cmdlines.items()
-            if name_match in cmd and pid != os.getpid()
-        ]
+        stack += [pid for pid, cmd in cmdlines.items() if name_match in cmd and pid != os.getpid()]
     while stack:
         pid = stack.pop()
         if pid in found:
@@ -122,6 +113,4 @@ class SocketWatcher:
 def launch_as_user(cmd: str) -> subprocess.Popen:
     """Start the app as the invoking user (not root), keeping the GUI session variables."""
     user = os.environ.get("SUDO_USER") or os.environ.get("NOALIBI_RUN_AS") or "root"
-    return subprocess.Popen(
-        ["sudo", "-E", "-u", user, "bash", "-c", cmd], start_new_session=True
-    )
+    return subprocess.Popen(["sudo", "-E", "-u", user, "bash", "-c", cmd], start_new_session=True)

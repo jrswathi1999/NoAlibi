@@ -118,9 +118,7 @@ def _chown_to_sudo_user(path: Path) -> None:
 
 
 def _sandbox(*args: str) -> None:
-    res = subprocess.run(
-        [str(SANDBOX), *args], check=False, capture_output=True, text=True
-    )
+    res = subprocess.run([str(SANDBOX), *args], check=False, capture_output=True, text=True)
     if res.returncode != 0:
         raise BehaviorError(f"sandbox.sh {args[0]} failed: {res.stderr.strip()}")
 
@@ -182,9 +180,7 @@ def live_capture(
         marker.stop()
         if watcher is not None:
             watcher.stop()
-            (run_dir / "sockets.json").write_text(
-                json.dumps(sorted(watcher.sockets), indent=2)
-            )
+            (run_dir / "sockets.json").write_text(json.dumps(sorted(watcher.sockets), indent=2))
         if app is not None and app.poll() is None:
             try:
                 os.killpg(app.pid, signal.SIGTERM)
@@ -227,9 +223,7 @@ def run_behavior(
             capture = json.loads((run_dir / "capture.json").read_text())
             actions = json.loads((run_dir / "actions.json").read_text())
         except FileNotFoundError as e:
-            raise BehaviorError(
-                f"--from-pcap needs capture.json and actions.json: {e}"
-            ) from e
+            raise BehaviorError(f"--from-pcap needs capture.json and actions.json: {e}") from e
         capture["pcap_sha256"] = sha256_file(pcap)
         warnings: list[str] = []
     else:
@@ -246,14 +240,10 @@ def run_behavior(
         sockets = {tuple(x) for x in json.loads(sockets_path.read_text())}
         flows = parse_pcap(pcap, local_ips() | {s[0] for s in sockets}, sockets)
         if not sockets:
-            warnings.append(
-                "host mode saw no sockets owned by the app (try --proc-match)"
-            )
+            warnings.append("host mode saw no sockets owned by the app (try --proc-match)")
     else:
         flows = parse_pcap(pcap)
-    doc = build_events(
-        run_dir.name, flows, capture, actions, app_name, first_party, update
-    )
+    doc = build_events(run_dir.name, flows, capture, actions, app_name, first_party, update)
     (run_dir / "timing.json").write_text(
         json.dumps(build_timing(flows, capture, actions), indent=2)
     )
