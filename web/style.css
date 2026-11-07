@@ -465,3 +465,8 @@ details.method ul { color: var(--muted); font-size: 13.5px; }
 .plain-list li { margin-bottom: 6px; }
 .plain-list .warn { color: var(--amber); }
 .feed .who { font-weight: 650; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.launched { margin-top: 18px; padding: 14px 18px; border-radius: 14px; border: 1px dashed var(--line-2); background: var(--panel-2); }
+.launched h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.launched p { margin: 0 0 8px; font-size: 14px; }
+.launched ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }

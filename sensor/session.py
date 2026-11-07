@@ -26,6 +26,7 @@ from sensor.procs import (
     AppInfo,
     hosts_self,
     launch_app,
+    launched_pids,
     list_processes,
     quit_app,
     self_pids,
@@ -113,6 +114,9 @@ class AuditSession:
         self.feed = feed or Feed()
         self.flows: dict[tuple, Flow] = {}
         self.self_flows: dict[tuple, dict] = {}
+        self.launched: dict[str, dict] = {}  # separate programs started inside the app
+        self._launched_seen: dict[tuple, tuple[int, int]] = {}
+        self._launched_last: dict[tuple, tuple[int, int]] = {}
         self.actions: list[UserAction] = []
         self.ticks: list[dict] = []
         self.t_start = 0.0
@@ -212,6 +216,11 @@ class AuditSession:
         procs = list_processes()
         mine = self._self | self_pids(procs)
         targets = target_pids(self.app.bundle_path, procs) - mine
+        launched = {
+            pid: name
+            for pid, name in launched_pids(self.app.bundle_path, procs).items()
+            if pid not in mine
+        }
         t = sample.t
         interval_start = self._prev_t or (t - SAMPLE_S)
         up = down = 0
@@ -220,6 +229,9 @@ class AuditSession:
             for c in sample.conns:
                 if c.pid in mine:
                     self._track_self(c)
+                    continue
+                if c.pid in launched and is_public(c.remote_ip):
+                    self._track_launched(launched[c.pid], c)
                     continue
                 if c.pid not in targets or not is_public(c.remote_ip):
                     continue  # other apps, and the app talking to itself over localhost/LAN
@@ -273,6 +285,24 @@ class AuditSession:
                 "self_up": sum(v["bytes_out"] for v in self.self_flows.values()),
             }
         )
+
+    def _track_launched(self, name: str, c: Conn) -> None:
+        """Traffic of separate programs started inside the app (e.g. `claude` in its terminal)."""
+        key = (c.pid, c.proto, c.local_port, c.remote_ip, c.remote_port)
+        first = key not in self._launched_seen
+        base = self._launched_seen.setdefault(
+            key, (c.bytes_out, c.bytes_in) if self._first_sample else (0, 0)
+        )
+        entry = self.launched.setdefault(
+            name, {"program": name, "bytes_out": 0, "bytes_in": 0, "servers": set()}
+        )
+        prev = self._launched_last.get(key, base)
+        entry["bytes_out"] += max(0, c.bytes_out - prev[0])
+        entry["bytes_in"] += max(0, c.bytes_in - prev[1])
+        entry["servers"].add(c.remote_ip)
+        self._launched_last[key] = (c.bytes_out, c.bytes_in)
+        if first:
+            log.info("not counted against the app: %s -> %s", name, c.remote_ip)
 
     def _track_self(self, c: Conn) -> None:
         if not is_public(c.remote_ip):
@@ -372,7 +402,15 @@ class AuditSession:
             for f in self.flows.values()
             if f.identity is not None
         ]
-        self._dump("flows.json", {"t0": self.t0, "event_flow": event_flow, "flows": flows})
+        launched = [
+            {**{k: v for k, v in e.items() if k != "servers"}, "servers": len(e["servers"])}
+            for e in self.launched.values()
+            if e["bytes_out"] or e["bytes_in"]
+        ]
+        self._dump(
+            "flows.json",
+            {"t0": self.t0, "event_flow": event_flow, "flows": flows, "launched": launched},
+        )
 
         by_cat: dict[str, list[float]] = defaultdict(list)
         series = []

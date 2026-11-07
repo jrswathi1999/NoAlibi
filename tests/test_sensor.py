@@ -11,7 +11,7 @@ import pytest
 from contracts.models import Events, UserAction
 from sensor.identify import Catalog, Identifier, cdn_provider, cert_covers, is_public, registrable
 from sensor.nettop import iter_samples, parse_lines, split_endpoint
-from sensor.procs import Proc, target_pids
+from sensor.procs import Proc, launched_pids, target_pids
 
 TABLE = """,bytes_in,bytes_out,
 Some App Helper.4312,7276,31697,
@@ -47,18 +47,30 @@ def test_iter_samples_splits_on_header():
     assert samples[1].conns[0].bytes_out == 40000
 
 
-def test_target_pids_follows_bundle_path_and_children():
+def _procs():
     procs = {
         1: Proc(1, 0, "/sbin/launchd"),
         10: Proc(10, 1, "/Applications/Notes AI.app/Contents/MacOS/Notes AI"),
-        11: Proc(11, 10, "/Applications/Notes AI.app/Contents/Frameworks/Helper.app/Helper"),
-        12: Proc(12, 11, "/usr/bin/curl https://example.com"),
+        11: Proc(
+            11, 10, "/Applications/Notes AI.app/Contents/Frameworks/Helper.app/Helper --type=gpu"
+        ),
+        12: Proc(12, 11, "/bin/zsh -l"),
+        13: Proc(13, 12, "/opt/homebrew/bin/claude --print hi"),
         20: Proc(20, 1, "/Applications/Other.app/Contents/MacOS/Other"),
     }
     for p in procs.values():
         if p.ppid in procs:
             procs[p.ppid].children.append(p.pid)
-    assert target_pids("/Applications/Notes AI.app", procs) == {10, 11, 12}
+    return procs
+
+
+def test_only_programs_inside_the_bundle_count_as_the_app():
+    assert target_pids("/Applications/Notes AI.app", _procs()) == {10, 11}
+
+
+def test_programs_started_inside_the_app_are_listed_not_blamed():
+    # e.g. Claude Code running in the app's built-in terminal
+    assert launched_pids("/Applications/Notes AI.app", _procs()) == {12: "zsh", 13: "claude"}
 
 
 def test_public_and_registrable():
@@ -121,6 +133,7 @@ def _session(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(sess, "self_pids", lambda procs=None: set())
     monkeypatch.setattr(sess, "list_processes", dict)
     monkeypatch.setattr(sess, "target_pids", lambda bundle, procs=None: {4312})
+    monkeypatch.setattr(sess, "launched_pids", lambda bundle, procs=None: {7000: "claude"})
     idf = Identifier(cert_probe=False)
     idf.ip_to_domain["160.79.104.10"] = "api.anthropic.com"
     s = sess.AuditSession(_App(), tmp_path / "20261107-120000-notes", idf, fresh_launch=False)
@@ -199,3 +212,14 @@ def test_local_traffic_is_ignored(tmp_path, monkeypatch):
     for t in (1001.0, 1002.0):
         s._on_sample(parse_lines(lines, t))
     assert s.flows == {}
+
+
+def test_launched_program_traffic_is_reported_separately(tmp_path, monkeypatch):
+    s = _session(tmp_path, monkeypatch)
+    lines = ["claude.7000,0,0,", "tcp4 10.0.0.5:5001<->160.79.104.10:443,500,9000,"]
+    s._on_sample(
+        parse_lines(["claude.7000,0,0,", "tcp4 10.0.0.5:5001<->160.79.104.10:443,0,0,"], 1001.0)
+    )
+    s._on_sample(parse_lines(lines, 1002.0))
+    assert s.flows == {}  # never counted as the app's traffic
+    assert s.launched["claude"]["bytes_out"] == 9000

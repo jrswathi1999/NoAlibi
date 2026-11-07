@@ -928,6 +928,14 @@ async function renderVerdict(runId, tab = "verdict") {
     ));
   }
 
+  const launched = d.flows?.launched || [];
+  if (launched.length) {
+    pw.append(h("section", { class: "launched" },
+      h("h3", {}, icon("info"), `Other programs you ran inside ${app.name}`),
+      h("p", { class: "muted" }, `These are separate programs started from inside ${app.name} (for example a terminal running Claude Code or git). They aren't part of ${app.name}, so they were not counted against it.`),
+      h("ul", {}, launched.map((x) => h("li", {}, h("b", {}, x.program), ` · sent ${fmtBytes(x.bytes_out)} to ${x.servers} server${x.servers === 1 ? "" : "s"}`)))));
+  }
+
   // ================= Step by step
   const ps = panelEls.story;
   ps.append(h("p", { class: "tab-intro" }, "What the app did, in order."));

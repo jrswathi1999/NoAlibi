@@ -101,6 +101,10 @@ AI request sent over an already-open connection still lines up with the moment y
 - **The summary can't invent.** It sees only the findings, and it's rejected if it names a company or
   domain that isn't in them, or claims a promise the policy doesn't make.
 - **We don't overstate.** "An upload large enough to contain what you typed," never "it sent your note."
+- **Only the app itself is judged.** Traffic counts against an app only if it comes from a program
+  inside the app's own folder (the app and its helpers). Separate programs you start from inside it,
+  such as Claude Code or git in VS Code's terminal, are listed under "Where your data went" but never
+  blamed on the app.
 - **We never restart an app No Alibi runs inside** (e.g. a terminal inside it).
 
 ### What we can't see

@@ -8,6 +8,7 @@ is a child of such a process. That catches Electron helpers and XPC services wit
 from __future__ import annotations
 
 import logging
+import os
 import plistlib
 import re
 import subprocess
@@ -111,17 +112,43 @@ def list_processes() -> dict[int, Proc]:
 
 
 def target_pids(bundle_path: str, procs: dict[int, Proc] | None = None) -> set[int]:
-    """PIDs whose executable is inside bundle_path, plus all their descendants."""
+    """PIDs whose executable lives inside bundle_path: the app and its own helpers.
+
+    Children that run a program from *outside* the bundle (a terminal shell, `claude`, `git`, an
+    extension's tool) are separate programs and are deliberately not counted; see launched_pids().
+    """
     procs = procs if procs is not None else list_processes()
     prefix = bundle_path.rstrip("/") + "/"
-    roots = {pid for pid, p in procs.items() if p.command.startswith(prefix)}
-    found = set(roots)
-    stack = list(roots)
+    return {pid for pid, p in procs.items() if p.command.startswith(prefix)}
+
+
+def program_name(command: str) -> str:
+    """'/opt/homebrew/bin/claude --print hi' -> 'claude'. Handles executable paths with spaces."""
+    parts = command.split(" ")
+    exe = parts[0]
+    for i in range(len(parts), 0, -1):  # longest prefix that is a real file
+        candidate = " ".join(parts[:i])
+        if candidate.startswith("/") and os.path.isfile(candidate):
+            exe = candidate
+            break
+    return exe.rsplit("/", 1)[-1] or exe
+
+
+def launched_pids(bundle_path: str, procs: dict[int, Proc] | None = None) -> dict[int, str]:
+    """Programs started from inside the app that live outside its bundle: pid -> program name.
+
+    Reported separately ("started from inside the app") so nothing is hidden, but never blamed on it.
+    """
+    procs = procs if procs is not None else list_processes()
+    own = target_pids(bundle_path, procs)
+    found: dict[int, str] = {}
+    stack = list(own)
     while stack:
         for child in procs[stack.pop()].children:
-            if child not in found:
-                found.add(child)
-                stack.append(child)
+            if child in own or child in found:
+                continue
+            found[child] = program_name(procs[child].command)
+            stack.append(child)
     return found
 
 
