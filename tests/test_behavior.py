@@ -149,3 +149,31 @@ def test_update_domain_wins_over_first_party():
         app_name="NotesApp",
     )
     assert got == ("update", "NotesApp")
+
+
+def test_marker_reads_enter_presses_and_saves(tmp_path):
+    import io
+
+    from behavior.mark import ActionMarker
+
+    m = ActionMarker()
+    th = m.listen(io.StringIO("used AI summarize\n\n"))
+    th.join(timeout=2)
+    m.save(tmp_path / "actions.json")
+    saved = __import__("json").loads((tmp_path / "actions.json").read_text())
+    assert [a["label"] for a in saved] == ["used AI summarize", ""]
+    assert saved[0]["t"].endswith("Z")
+
+
+def test_phase_rules():
+    from behavior.mark import phase_for
+
+    start, actions = 1000.0, [1040.0]
+    assert phase_for(1002.0, start, actions) == "startup"
+    assert phase_for(1042.0, start, actions) == "user_action"
+    assert phase_for(1045.0, start, actions) == "user_action"
+    assert phase_for(1045.1, start, actions) == "idle"
+    assert (
+        phase_for(1039.9, start, actions) == "idle"
+    )  # before the click is not caused by it
+    assert phase_for(1005.0, start, [1003.0]) == "user_action"
