@@ -113,6 +113,7 @@ and connections that open and close inside one 1-second sample. The verdict page
 | App | Verdict | Why |
 |---|---|---|
 | Ollama 0.33 | **ALIBI HOLDS** | Policy: "Your data stays on your machine." A prompt was run during the audit and **0 bytes** left the app. |
+| Kiro 1.4 (AWS's AI coding app) | **ALIBI HOLDS** (startup and idle only) | Restarted and watched for 2 minutes without using its AI: only its own server (`runtime.us-east-1.kiro.dev`) and CDN hosting. Its policy names Amazon Bedrock, Anthropic and OpenAI and offers an opt-out for free-tier training. |
 | Google Chrome 156 | **ALIBI HOLDS** | Only its own servers, hosting and unidentified servers. Traffic that matched a DeepSeek domain on a shared CloudFront address was held as *unsure* and not counted. |
 
 ## Repo layout
