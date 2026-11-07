@@ -3,7 +3,7 @@
   "apps": {
     "com.anthropic.claudefordesktop": {"policy_url": "https://www.anthropic.com/legal/privacy", "first_party": ["anthropic.com", "claude.ai", "claude.com", "claudeusercontent.com"]},
     "com.microsoft.VSCode": {"policy_url": "https://privacy.microsoft.com/en-us/privacystatement", "first_party": ["microsoft.com", "visualstudio.com", "vscode-cdn.net", "vsassets.io", "live.com", "vscode-unpkg.net", "vscode.dev"]},
-    "dev.kiro.desktop": {"policy_url": "https://aws.amazon.com/privacy/", "first_party": ["kiro.dev", "amazon.com"]},
+    "dev.kiro.desktop": {"policy_url": "https://kiro.dev/docs/privacy-and-security/data-protection/", "first_party": ["kiro.dev", "amazon.com"]},
     "com.docker.docker": {"policy_url": "https://www.docker.com/legal/docker-privacy-policy/", "first_party": ["docker.com", "docker.io"]},
     "com.github.GitHubClient": {"policy_url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement", "first_party": ["github.com", "githubusercontent.com", "githubapp.com"]},
     "com.google.Chrome": {"policy_url": "https://policies.google.com/privacy", "first_party": ["google.com", "googleapis.com", "gstatic.com", "gvt1.com", "gvt2.com", "googleusercontent.com", "youtube.com"]},

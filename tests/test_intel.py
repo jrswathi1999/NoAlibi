@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from intel.claims import provider_claim, relevant_context, sentences, validate_quote
+from intel.claims import opt_out_claim, provider_claim, relevant_context, sentences, validate_quote
 from intel.policy import PolicyDoc, guess_first_party, html_to_text
 
 POLICY = (
@@ -72,3 +72,28 @@ def test_first_party_guess():
     )
     assert "anthropic.com" in fp and "claude.ai" in fp
     assert "kiro.dev" in guess_first_party("dev.kiro.desktop", None)
+
+
+def test_unambiguous_ai_company_needs_no_ai_word():
+    text = (
+        "For Anthropic Claude, all traffic will be retained for up to 30 days for abuse detection."
+    )
+    found = provider_claim(_doc(text), sentences(text))
+    assert found["providers"] == ["Anthropic"]
+
+
+def test_ambiguous_company_needs_ai_context():
+    text = "We host our website on Amazon servers in the United States of America."
+    found = provider_claim(_doc(text), sentences(text))
+    assert found is None or found["providers"] == []
+
+
+def test_opt_out_found_without_a_model():
+    text = (
+        "Kiro Free Tier user: Subject to your opt out, content may be used for service improvement."
+    )
+    assert opt_out_claim(sentences(text))["value"] == "yes"
+    assert (
+        opt_out_claim(sentences("You can disable cookies in your browser settings at any time."))
+        is None
+    )

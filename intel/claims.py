@@ -49,6 +49,10 @@ PROVIDERS: dict[str, re.Pattern] = {
     "Cohere": re.compile(r"\bCohere\b", re.IGNORECASE),
     "Mistral": re.compile(r"\bMistral\b", re.IGNORECASE),
 }
+# Names that only ever mean an AI company; the rest (Google, Amazon...) need an AI word nearby.
+UNAMBIGUOUS_AI = {"OpenAI", "Anthropic", "Cohere", "Mistral"}
+# Training / opt-out statements often say "service improvement" instead of "AI".
+ABOUT_TRAINING = re.compile(AI_WORDS.pattern + r"|\btrain|\bimprov", re.IGNORECASE)
 SHARING = re.compile(
     r"\b(service providers?|third[- ]part(y|ies)|vendors?|subprocessors?|partners)\b", re.IGNORECASE
 )
@@ -94,7 +98,7 @@ QUESTIONS = [
             "artificial intelligence",
             "ai",
         ),
-        AI_WORDS,
+        ABOUT_TRAINING,
     ),
     Question(
         "retention_stated",
@@ -119,7 +123,7 @@ QUESTIONS = [
             "ai",
             "artificial intelligence",
         ),
-        AI_WORDS,
+        ABOUT_TRAINING,
     ),
     Question(
         "shares_with_third_parties",
@@ -252,9 +256,12 @@ def provider_claim(doc: PolicyDoc, policy_sentences: list[str]) -> dict | None:
     named: list[str] = []
     quote = None
     for s in policy_sentences:
-        if not AI_WORDS.search(s):
-            continue
-        hits = [name for name, pat in PROVIDERS.items() if pat.search(s)]
+        about_ai = bool(AI_WORDS.search(s))
+        hits = [
+            name
+            for name, pat in PROVIDERS.items()
+            if pat.search(s) and (about_ai or name in UNAMBIGUOUS_AI)
+        ]
         if hits:
             named += [h for h in hits if h not in named]
             quote = quote or s
@@ -262,8 +269,29 @@ def provider_claim(doc: PolicyDoc, policy_sentences: list[str]) -> dict | None:
         return {"value": "yes", "providers": named, "quote": quote}
     sharing = [s for s in policy_sentences if SHARING.search(s) and len(s) < 400]
     if sharing:  # the policy talks about recipients without naming any AI company
-        about_ai = [s for s in sharing if AI_WORDS.search(s)]
-        return {"value": "no", "providers": [], "quote": (about_ai or sharing)[0]}
+        ai_sharing = [s for s in sharing if AI_WORDS.search(s)]
+        return {"value": "no", "providers": [], "quote": (ai_sharing or sharing)[0]}
+    return None
+
+
+NEGATED = re.compile(r"\b(do|does|will) not\b|\bnever\b|\bdon't\b|\bdoesn't\b", re.IGNORECASE)
+USES_DATA = re.compile(
+    r"\b(may|will|can) use\b|\bwe use\b|\bbe used\b|\bmay be used\b", re.IGNORECASE
+)
+OPT_OUT = re.compile(
+    r"\bopt[- ]?out\b|\bopt you out\b|\bturn off\b|\bdisable\b|\bwithdraw\b", re.IGNORECASE
+)
+
+
+def opt_out_claim(policy_sentences: list[str]) -> dict | None:
+    """Deterministic ai_opt_out = yes: a sentence offering an opt-out from AI use / training."""
+    for s in policy_sentences:
+        if (
+            OPT_OUT.search(s)
+            and ABOUT_TRAINING.search(s)
+            and not re.search(r"\bcannot\b|\bcan't\b", s, re.IGNORECASE)
+        ):
+            return {"value": "yes", "providers": [], "quote": s}
     return None
 
 
@@ -285,6 +313,22 @@ def extract_claims(
     dropped: list[dict] = []
 
     def add(ctype: str, raw: dict) -> None:
+        if (
+            ctype == "trains_on_user_data"
+            and raw["value"] == "yes"
+            and NEGATED.search(raw["quote"])
+        ):
+            # A "yes" must be quoted with a sentence that says yes, not with an exception to it.
+            better = next(
+                (
+                    x
+                    for x in policy_sentences
+                    if USES_DATA.search(x) and ABOUT_TRAINING.search(x) and not NEGATED.search(x)
+                ),
+                None,
+            )
+            if better:
+                raw = {**raw, "quote": better}
         checked = validate_quote(raw["quote"], doc.text, policy_sentences) if raw["quote"] else None
         if not checked:
             dropped.append({"type": ctype, **raw, "reason": "quote not found in policy"})
@@ -310,7 +354,13 @@ def extract_claims(
     if prov:
         add("names_ai_provider", prov)
 
+    opt = opt_out_claim(policy_sentences)
+    if opt:
+        add("ai_opt_out", opt)
+
     for q in QUESTIONS:
+        if q.type == "ai_opt_out" and opt:
+            continue  # already answered from the policy's own words
         if on_progress:
             on_progress(f"Reading: {q.type.replace('_', ' ')}")
         context = relevant_context(doc.text, q.keywords)
