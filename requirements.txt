@@ -10,3 +10,7 @@ pytest>=8.0
 requests>=2.31
 # Needed by fastapi.testclient in tests.
 httpx>=0.27
+# Windows capture: map connections to the audited app's processes.
+psutil>=5.9
+# Use the OS certificate store for HTTPS (antivirus that intercepts TLS breaks certifi).
+truststore>=0.9
