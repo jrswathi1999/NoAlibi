@@ -79,42 +79,50 @@ const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)")
 
 // ------------------------------------------------------------------ categories
 
+// Plain-language meaning of each kind of destination. `status` decides how it's presented:
+// normal (expected for almost any app), notable (worth knowing), attention (check the promise).
 const CATS = {
-  ai_provider: { label: "AI provider", color: "var(--c-ai)" },
-  analytics: { label: "Analytics", color: "var(--c-analytics)" },
-  tracker: { label: "Tracker / ads", color: "var(--c-tracker)" },
-  error_reporting: { label: "Crash reporting", color: "var(--c-error)" },
-  first_party: { label: "App's own server", color: "var(--c-first)" },
-  update: { label: "Updates", color: "var(--c-update)" },
-  cdn: { label: "CDN / cloud host", color: "var(--c-cdn)" },
-  platform: { label: "OS service", color: "var(--c-platform)" },
-  unknown: { label: "Unknown", color: "var(--c-unknown)" },
-  identifying: { label: "Identifying…", color: "var(--c-unknown)" },
+  ai_provider: { label: "AI company", color: "var(--c-ai)", status: "attention", what: "Receives whatever the app sends to its AI feature." },
+  analytics: { label: "Usage analytics", color: "var(--c-analytics)", status: "notable", what: "Records how you use the app: screens, clicks, features." },
+  tracker: { label: "Advertising & tracking", color: "var(--c-tracker)", status: "attention", what: "Builds a profile of you across apps and websites." },
+  error_reporting: { label: "Crash & error reports", color: "var(--c-error)", status: "notable", what: "Gets a report when something breaks; can include details about your device." },
+  first_party: { label: "The app's own servers", color: "var(--c-first)", status: "normal", what: "The app maker's own service. Normal." },
+  update: { label: "Update checks", color: "var(--c-update)", status: "normal", what: "Checks for a newer version. Normal." },
+  cdn: { label: "Content delivery & cloud hosting", color: "var(--c-cdn)", status: "normal", what: "Delivers files, images and pages for many companies. Normal for almost every app." },
+  platform: { label: "macOS services", color: "var(--c-platform)", status: "normal", what: "Apple system services the app relies on. Normal." },
+  unknown: { label: "Unidentified servers", color: "var(--c-unknown)", status: "normal", what: "We couldn't tell who these belong to (usually cloud hosting). Never flagged." },
+  identifying: { label: "Identifying…", color: "var(--c-unknown)", status: "normal", what: "" },
 };
 const cat = (k) => CATS[k] || CATS.unknown;
+const STATUS = {
+  attention: { label: "Check this", cls: "st-attention" },
+  notable: { label: "Worth knowing", cls: "st-notable" },
+  normal: { label: "Normal", cls: "st-normal" },
+};
+const CONF_LABEL = { confirmed: "verified", likely: "probable", possible: "unsure", weak: "unsure", unknown: "unknown" };
 const CONF_TEXT = {
-  confirmed: "DNS and certificate agree",
-  likely: "matched by DNS or certificate",
-  possible: "shared CDN address; other sites can use it too",
-  weak: "reverse DNS only",
-  unknown: "no name found",
+  confirmed: "Verified: the address and the server's own name tag (certificate) agree.",
+  likely: "Probable: matched by address or by the server's name tag.",
+  possible: "Unsure: this address is shared by many companies, so we can't be certain.",
+  weak: "Unsure: only a rough reverse lookup.",
+  unknown: "We couldn't find a name.",
 };
 
 const RULE_WHY = {
-  R1_undisclosed_ai_provider: "The policy never names this AI company, yet the app sent it data.",
-  R2_local_promise_broken: "The policy promises your data stays on your device.",
-  R3_background_telemetry: "Clockwork-regular connections while you weren't doing anything.",
-  R4_content_upload_suspicion: "A large upload right after you used the app: big enough to carry what you typed. (We can't see inside encrypted traffic.)",
-  R5_silent_on_training: "It talks to an AI company, but the policy doesn't clearly say whether your data trains AI.",
+  R1_undisclosed_ai_provider: "The privacy policy never says this AI company gets your data, but the app sent it data.",
+  R2_local_promise_broken: "The policy says your data stays on your device, but data went to another company right after you used the app.",
+  R3_background_telemetry: "While you weren't using the app, it checked in with this company on a regular schedule, which is typical of background tracking.",
+  R4_content_upload_suspicion: "Right after you used the feature, the app sent a chunk of data big enough to include what you typed. (We can't see inside it.)",
+  R5_silent_on_training: "The app uses an AI company, but the policy doesn't clearly say whether your data is used to train AI.",
   R6_unknown_recipient: "We couldn't confirm who this is.",
 };
 const CLAIM_Q = {
-  data_stays_local: "Promises your data stays on your device",
+  data_stays_local: "Keeps your data on your device",
   names_ai_provider: "Names the AI company it uses",
-  trains_on_user_data: "Says your data trains AI",
-  retention_stated: "States how long data is kept",
+  trains_on_user_data: "Uses your data to train AI",
+  retention_stated: "Says how long it keeps data",
   ai_opt_out: "Lets you opt out of AI",
-  shares_with_third_parties: "Shares data with third parties",
+  shares_with_third_parties: "Shares data with other companies",
 };
 // Which answer is good news for the user (drives the icon colour, not the literal yes/no).
 const GOOD_ANSWER = {
@@ -126,14 +134,14 @@ const GOOD_ANSWER = {
   shares_with_third_parties: "no",
 };
 const VERDICT = {
-  NO_ALIBI: { word: "No alibi", icon: "x" },
-  QUESTIONABLE: { word: "Questionable", icon: "alert" },
-  ALIBI_HOLDS: { word: "Alibi holds", icon: "check" },
+  NO_ALIBI: { word: "No alibi", icon: "x", line: "It broke a promise in its privacy policy." },
+  QUESTIONABLE: { word: "Worth a look", icon: "alert", line: "No broken promise, but something you may want to know." },
+  ALIBI_HOLDS: { word: "Alibi holds", icon: "check", line: "It kept its promises during this check." },
 };
 
 const sevBadge = (sev) =>
   h("span", { class: `sev ${sev}` }, icon(sev === "red" ? "x" : sev === "amber" ? "alert" : "info"),
-    sev === "red" ? "Broken promise" : sev === "amber" ? "Suspicious" : "Context");
+    sev === "red" ? "Broken promise" : sev === "amber" ? "Worth knowing" : "Background");
 
 function appIcon(app, size = "") {
   const name = (app && app.name) || "?";
@@ -215,11 +223,11 @@ async function route() {
   keyHandlers.clear();
   if (state.es) { state.es.close(); state.es = null; }
   window.onresize = null;
-  const [, view, id] = (location.hash || "#/").split("/");
+  const [, view, id, tab] = (location.hash || "#/").split("/");
   main.replaceChildren();
   try {
     if (view === "audit" && id) { setNav(""); await renderLive(id); }
-    else if (view === "case" && id) { setNav("runs"); await renderVerdict(id); }
+    else if (view === "case" && id) { setNav("runs"); await renderVerdict(id, tab); }
     else if (view === "runs") { setNav("runs"); await renderRuns(); }
     else { setNav("home"); await renderHome(); }
   } catch (err) {
@@ -316,19 +324,19 @@ function renderSetup(slot, app) {
       h("div", { class: "muted" }, `${app.bundle_id}${app.version ? ` · version ${app.version}` : ""}`),
       h("div", { class: "field" }, h("label", { for: "policy-url" }, "Privacy policy"), url, hint),
       h("div", { class: "toggles" },
-        h("label", { class: "toggle" }, fresh, h("div", {}, h("b", {}, "Cold start (recommended)"),
+        h("label", { class: "toggle" }, fresh, h("div", {}, h("b", {}, "Restart the app first (recommended)"),
           h("span", {}, app.hosts_self
-            ? `Unavailable: No Alibi itself is running inside ${app.name}, so quitting it would stop the audit.`
+            ? `Not possible: No Alibi itself is running inside ${app.name}, so closing it would stop the check.`
             : ollamaSelf
-              ? "Off for Ollama: restarting it would stop the local model that reads the policy."
-              : `We quit and reopen ${app.name}, so we also see what it does the moment it launches.`))),
-        h("label", { class: "toggle" }, cert, h("div", {}, h("b", {}, "Identify servers by certificate"),
-          h("span", {}, "Opens our own TLS handshake to a server the app contacted, to read its name. Sends no data; listed in the self-audit."))),
+              ? "Off for Ollama: restarting it would also stop the local AI that reads the policy."
+              : `We close ${app.name} and open it again, so we also see what it does the moment it starts. Save your work in it first.`))),
+        h("label", { class: "toggle" }, cert, h("div", {}, h("b", {}, "Find out which company each server belongs to (recommended)"),
+          h("span", {}, "We read the public name tag (certificate) of servers the app contacts. Nothing of yours is sent."))),
       ),
       h("div", { class: "setup-actions" },
         start,
         h("button", { class: "btn ghost", type: "button", onclick: () => { state.selected = null; slot.replaceChildren(); document.querySelectorAll(".app-tile[aria-pressed=true]").forEach((t) => t.setAttribute("aria-pressed", "false")); } }, "Cancel"),
-        h("span", { class: "hint" }, "Tip: have the app's AI feature ready to try once while we watch."),
+        h("span", { class: "hint" }, "Next: use the app normally and try its AI feature once. Takes about a minute."),
       ),
     ),
   );
@@ -345,7 +353,7 @@ function renderSetup(slot, app) {
     }
     url.removeAttribute("aria-invalid");
     if (fresh.checked && app.running) {
-      const go = await confirmDialog(`Restart ${app.name}?`, `${app.name} is open. No Alibi will quit it and open it again for a clean start. Save any unsaved work first.`, `Restart ${app.name}`);
+      const go = await confirmDialog(`Close and reopen ${app.name}?`, `${app.name} is open. No Alibi will close it and open it again so it can watch from the very start. Save any unsaved work in ${app.name} first.`, `Close and reopen`);
       if (!go) return;
     }
     start.disabled = true;
@@ -475,7 +483,7 @@ class Constellation {
         const name = n.domain || n.key;
         n.label.textContent = name.length > 26 ? `…${name.slice(-25)}` : name;
         n.sub.textContent = `${n.owner ? `${n.owner} · ` : ""}↑${fmtBytes(n.out)}`;
-        n.title.textContent = `${name}\n${cat(n.category).label}${n.owner ? ` · ${n.owner}` : ""}\nSent ${fmtBytes(n.out)}, received ${fmtBytes(n.in)}\nIdentification: ${CONF_TEXT[n.confidence] || n.confidence}`;
+        n.title.textContent = `${name}\n${cat(n.category).label}${n.owner ? ` · ${n.owner}` : ""}\nSent ${fmtBytes(n.out)}, received ${fmtBytes(n.in)}\n${CONF_TEXT[n.confidence] || ""}`;
       });
     }
   }
@@ -501,18 +509,18 @@ async function renderLive(runId) {
   app = app || { name: runId.split("-").slice(2).join("-") };
 
   const rec = h("span", { class: "rec" }, "0:00");
-  const steps = ["Launch", "Watching", "Your AI action", "Verdict"].map((s) => h("li", {}, s));
+  const steps = ["App starting", "Watching", "You use the AI", "Verdict"].map((s) => h("li", {}, s));
   const stepper = h("ol", { class: "stepper", "aria-label": "Audit progress" }, steps);
   main.append(h("div", { class: "live-head" }, appIcon(app), h("div", {}, h("h1", {}, `Watching ${app.name}`), h("div", { class: "muted", style: { fontSize: "13px" } }, "Record only: nothing is blocked, decrypted or changed.")), rec, stepper));
 
   const con = new Constellation(app.name);
-  const idleHint = h("div", { class: "idle-hint" }, "Connections appear here the moment the app makes them.");
+  const idleHint = h("div", { class: "idle-hint" }, "Each service the app contacts appears here the moment it happens. Silence is good news.");
   const legend = h("div", { class: "legend", "aria-hidden": "true" }, Object.entries(CATS).filter(([k]) => k !== "identifying").map(([, c]) => h("span", {}, h("i", { style: { background: c.color } }), c.label)));
   const stat = (k, cls = "") => { const v = h("div", { class: "v" }, "0"); return [h("div", { class: `stat ${cls}` }, h("div", { class: "k" }, k), v), v]; };
   const [sUp, vUp] = stat("Sent");
   const [sDown, vDown] = stat("Received");
-  const [sDest, vDest] = stat("Destinations");
-  const [sSelf, vSelf] = stat("No Alibi → 3rd parties", "self");
+  const [sDest, vDest] = stat("Services contacted");
+  const [sSelf, vSelf] = stat("Your data sent by No Alibi", "self");
   const feed = h("ul", { class: "feed", "aria-label": "Destinations, most recent first" });
   const feedCount = h("span", { class: "count" }, "0");
   const policyStatus = h("div", { class: "policy-status" }, h("span", { class: "spinner" }), h("span", {}, "Starting…"));
@@ -520,12 +528,12 @@ async function renderLive(runId) {
 
   main.append(h("div", { class: "live-grid" },
     h("section", { class: "panel", "aria-labelledby": "map-h" },
-      h("h2", { id: "map-h" }, icon("eye"), "Live wiretap"),
+      h("h2", { id: "map-h" }, icon("eye"), "Live map: every service the app contacts"),
       h("div", { class: "constellation-wrap" }, con.svg, idleHint), legend),
     h("div", { style: { display: "grid", gap: "16px", alignContent: "start" } },
       h("section", { class: "panel" }, h("div", { class: "totals" }, sUp, sDown, sDest, sSelf),
-        h("h2", {}, "Destinations", feedCount), feed),
-      h("section", { class: "panel", "aria-labelledby": "pol-h" }, h("h2", { id: "pol-h" }, icon("doc"), "Reading the policy (local AI)"), policyStatus, claimsBox),
+        h("h2", {}, "Who it's talking to", feedCount), feed),
+      h("section", { class: "panel", "aria-labelledby": "pol-h" }, h("h2", { id: "pol-h" }, icon("doc"), "What the privacy policy promises"), policyStatus, claimsBox),
     ),
   ));
 
@@ -556,8 +564,9 @@ async function renderLive(runId) {
       const li = h("li", { class: n.flash ? "flash" : "", style: { "--edge-color": cat(n.category).color } },
         h("span", { class: "cat-dot", style: { background: cat(n.category).color }, title: cat(n.category).label }),
         h("div", { style: { minWidth: 0 } },
-          h("div", { class: "dom" }, n.domain || n.key, n.confidence && n.category !== "identifying" ? h("span", { class: `conf conf-${n.confidence}`, title: CONF_TEXT[n.confidence] }, n.confidence) : null),
-          h("div", { class: "own" }, `${cat(n.category).label}${n.owner ? ` · ${n.owner}` : ""}`)),
+          h("div", { class: "who" }, n.owner && !["cdn", "unknown"].includes(n.category) ? n.owner : cat(n.category).label,
+            n.confidence && n.category !== "identifying" ? h("span", { class: `conf conf-${n.confidence}`, title: CONF_TEXT[n.confidence] }, CONF_LABEL[n.confidence]) : null),
+          h("div", { class: "own" }, `${cat(n.category).status === "normal" ? "Normal · " : ""}${n.domain || n.key}`)),
         h("div", { class: "bytes" }, h("b", {}, `↑${fmtBytes(n.out)}`), h("br"), `↓${fmtBytes(n.in)}`));
       return li;
     }));
@@ -661,7 +670,7 @@ async function renderLive(runId) {
         if (started && !judging) rec.textContent = fmtSecs(rel);
         vUp.textContent = fmtBytes(m.total_up);
         vDown.textContent = fmtBytes(m.total_down);
-        vSelf.textContent = fmtBytes(m.self_up || 0);
+        vSelf.textContent = "0 B";
         for (const f of m.active || []) onFlow(f, true, m.t);
         drawFeed();
         break;
@@ -715,9 +724,50 @@ async function renderLive(runId) {
   judgeView.hidden = true;
 }
 
-// ------------------------------------------------------------------ verdict
+// ------------------------------------------------------------------ verdict (tabs)
 
-async function renderVerdict(runId) {
+const TABS = [
+  { id: "verdict", label: "Verdict" },
+  { id: "promises", label: "Promises" },
+  { id: "where", label: "Where your data went" },
+  { id: "story", label: "Step by step" },
+  { id: "about", label: "About this check" },
+];
+
+// An unsure identification is never presented as a company: it goes to "Unidentified servers".
+const UNSURE = new Set(["possible", "weak", "unknown"]);
+const shownCategory = (f) => (UNSURE.has(f.confidence) && cat(f.category).status !== "normal" ? "unknown" : f.category || "unknown");
+
+// Group connections by the company behind them; normal infrastructure gets one bucket per kind.
+function groupDestinations(flows, findings, evOf) {
+  const flagged = new Map();
+  for (const f of findings) {
+    if (f.severity === "info") continue;
+    for (const e of f.event_ids) { const k = evOf.get(e); if (k) flagged.set(k, f.severity === "red" || flagged.get(k) === "red" ? "red" : "amber"); }
+  }
+  const groups = new Map();
+  for (const f of flows) {
+    const fc = shownCategory(f);
+    const infra = ["cdn", "unknown", "platform"].includes(fc);
+    const key = infra ? `kind:${fc}` : `co:${f.owner || f.domain || f.ip}`;
+    const g = groups.get(key) || { key, name: infra ? cat(fc).label : f.owner || f.domain || f.ip, category: fc, out: 0, in: 0, domains: new Map(), flag: null, best: "unknown" };
+    g.out += f.bytes_out || 0;
+    g.in += f.bytes_in || 0;
+    const dkey = f.domain || f.ip;
+    const d = g.domains.get(dkey) || { name: dkey, out: 0, in: 0, confidence: f.confidence, note: f.note, count: 0 };
+    d.out += f.bytes_out || 0; d.in += f.bytes_in || 0; d.count += 1;
+    g.domains.set(dkey, d);
+    const fl = flagged.get(dkey);
+    if (fl) g.flag = fl === "red" || g.flag === "red" ? "red" : "amber";
+    const rank = { confirmed: 4, likely: 3, possible: 2, weak: 1, unknown: 0 };
+    if ((rank[f.confidence] || 0) > (rank[g.best] || 0)) g.best = f.confidence;
+    groups.set(key, g);
+  }
+  const order = { attention: 0, notable: 1, normal: 2 };
+  return [...groups.values()].sort((a, b) => (a.flag ? 0 : 1) - (b.flag ? 0 : 1) || order[cat(a.category).status] - order[cat(b.category).status] || b.out - a.out);
+}
+
+async function renderVerdict(runId, tab = "verdict") {
   main.append(h("div", { class: "empty" }, h("span", { class: "spinner" }), " Opening the case file…"));
   const d = await api(`/api/runs/${runId}`);
   state.apps = state.apps || (await api("/api/apps").catch(() => []));
@@ -725,259 +775,238 @@ async function renderVerdict(runId) {
 
   const run = d.run || {};
   const verdict = d.verdict || { verdict: "QUESTIONABLE" };
-  const findings = d.findings?.findings || [];
+  const allFindings = d.findings?.findings || [];
+  const findings = allFindings.filter((f) => f.severity !== "info");
   const claims = d.claims?.claims || [];
   const events = d.events?.events || [];
-  const flowsList = d.flows?.flows || [];
+  const flows = d.flows?.flows || [];
   const app = (state.apps || []).find((a) => a.bundle_id === run.app?.bundle_id) || { name: run.app?.name || runId };
   const v = VERDICT[verdict.verdict] || VERDICT.QUESTIONABLE;
   const glow = { NO_ALIBI: "var(--red-bg)", QUESTIONABLE: "var(--amber-bg)", ALIBI_HOLDS: "var(--green-bg)" }[verdict.verdict];
+  const duration = d.timeline?.duration || 0;
 
-  // ---- hero
+  const flowCat = new Map(flows.map((f) => [f.domain || f.ip, f]));
+  const evOf = new Map(events.map((e) => [e.id, e.domain || e.ip]));
+  const evById = new Map(events.map((e) => [e.id, e]));
+  const claimById = new Map(claims.map((c) => [c.id, c]));
+  const groups = groupDestinations(flows, allFindings, evOf);
+  const companies = groups.filter((g) => !g.key.startsWith("kind:"));
+
+  // ---- header (always visible)
+  const headIcon = appIcon(app);
+  headIcon.classList.add("tiny-icon");
   main.append(h("section", { class: "verdict-hero", style: { "--vglow": glow }, "aria-labelledby": "vh" },
-    h("div", { class: `stamp ${verdict.verdict}`, role: "img", "aria-label": `Verdict: ${v.word}` }, v.word),
+    h("div", { class: `stamp ${verdict.verdict}`, "aria-hidden": "true" }, v.word),
     h("div", {},
-      h("div", { class: "muted", style: { fontSize: "13px", display: "flex", gap: "10px", alignItems: "center" } }, appIcon(app, ""), `${app.name}${run.app?.version ? ` ${run.app.version}` : ""} · ${run.started_at ? fmtDate(run.started_at) : runId}`),
-      h("h1", { id: "vh" }, verdict.one_liner),
+      h("div", { class: "muted vmeta" }, headIcon, `${app.name}${run.app?.version ? ` ${run.app.version}` : ""} · checked ${run.started_at ? fmtDate(run.started_at) : ""} · watched for ${fmtSecs(duration)}`),
+      h("h1", { id: "vh" }, h("span", { class: "sr-only" }, `Verdict: ${v.word}. `), v.line),
       h("p", { class: "summary" }, d.findings?.summary || ""),
-      h("div", { class: "counts" },
-        verdict.red ? h("span", { class: "sev red" }, icon("x"), `${verdict.red} broken promise${verdict.red > 1 ? "s" : ""}`) : null,
-        verdict.amber ? h("span", { class: "sev amber" }, icon("alert"), `${verdict.amber} suspicious`) : null,
-        verdict.info ? h("span", { class: "sev info" }, icon("info"), `${verdict.info} context`) : null,
-        h("span", { class: "chip" }, `${events.length} bursts · ${flowsList.length} connections`)),
     ),
     h("div", { class: "actions" },
-      h("a", { class: "btn primary", href: `/api/runs/${runId}/evidence.zip`, download: "" }, icon("down"), "Evidence (.zip)"),
-      h("a", { class: "btn", href: `/api/runs/${runId}/report.html`, target: "_blank", rel: "noopener" }, icon("doc"), "One-page report"),
+      h("a", { class: "btn", href: `/api/runs/${runId}/report.html`, target: "_blank", rel: "noopener" }, icon("doc"), "Printable report"),
     ),
   ));
-  const hero = main.querySelector(".verdict-hero .muted img, .verdict-hero .muted .ph");
-  if (hero) { hero.style.width = "22px"; hero.style.height = "22px"; hero.style.borderRadius = "6px"; }
 
-  // ---- scorecard
+  // ---- tabs (WAI-ARIA tabs pattern: arrow keys move between tabs)
+  const tablist = h("div", { class: "tabs", role: "tablist", "aria-label": "Case file sections" });
+  const panels = h("div");
+  const counts = { promises: claims.length, where: companies.length };
+  const tabEls = TABS.map((t) => {
+    const b = h("button", { class: "tab", role: "tab", id: `tab-${t.id}`, "aria-controls": `panel-${t.id}`, type: "button" }, t.label,
+      counts[t.id] != null ? h("span", { class: "tab-count" }, String(counts[t.id])) : null);
+    b.addEventListener("click", () => select(t.id, true));
+    b.addEventListener("keydown", (e) => {
+      const i = TABS.findIndex((x) => x.id === t.id);
+      const next = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i - 1 + TABS.length) % TABS.length : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : null;
+      if (next !== null) { e.preventDefault(); select(TABS[next].id, true); tabEls[next].focus(); }
+    });
+    tablist.append(b);
+    return b;
+  });
+  const panelEls = {};
+  for (const t of TABS) {
+    panelEls[t.id] = h("section", { class: "tabpanel", role: "tabpanel", id: `panel-${t.id}`, "aria-labelledby": `tab-${t.id}`, tabindex: "0", hidden: true });
+    panels.append(panelEls[t.id]);
+  }
+  main.append(tablist, panels);
+  function select(id, push) {
+    TABS.forEach((t, i) => {
+      const on = t.id === id;
+      tabEls[i].setAttribute("aria-selected", on ? "true" : "false");
+      tabEls[i].tabIndex = on ? 0 : -1;
+      panelEls[t.id].hidden = !on;
+    });
+    if (push) history.replaceState(null, "", `#/case/${runId}/${id}`);
+  }
+
+  // ================= Verdict tab
+  const pv = panelEls.verdict;
+  if (findings.length) {
+    pv.append(h("h2", { class: "tab-h" }, findings.some((f) => f.severity === "red") ? "What it did that the policy doesn't allow" : "What you may want to know"));
+    for (const f of findings) {
+      const claim = f.claim_ids.map((c) => claimById.get(c)).find(Boolean);
+      const evs = f.event_ids.map((e) => evById.get(e)).filter(Boolean);
+      const dest = [...new Set(evs.map((e) => e.domain || e.ip))];
+      const owner = evs.find((e) => e.owner)?.owner;
+      const sent = evs.reduce((s, e) => s + e.bytes_out, 0);
+      const when = evs.length ? evs[0].phase : null;
+      pv.append(h("article", { class: `case ${f.severity}` },
+        h("div", { class: "case-head" }, sevBadge(f.severity), h("h3", {}, f.title)),
+        h("p", { class: "case-why" }, RULE_WHY[f.rule] || ""),
+        h("div", { class: "case-cols" },
+          h("div", { class: "case-col" }, h("div", { class: "case-k" }, "The promise"),
+            claim ? h("q", {}, claim.quote) : h("p", { class: "muted" }, "The policy says nothing about this."),
+            claim ? h("a", { class: "src", href: claim.source_url, target: "_blank", rel: "noopener noreferrer" }, "Read it in the policy") : null),
+          h("div", { class: "case-arrow", "aria-hidden": "true" }, "→"),
+          h("div", { class: "case-col" }, h("div", { class: "case-k" }, "What actually happened"),
+            h("p", { class: "case-fact" }, `${fmtBytes(sent)} sent to ${owner || dest[0] || "a server"}`),
+            h("p", { class: "muted small" }, [when === "user_action" ? "Right after you used the AI feature" : when === "startup" ? "While the app was starting" : when === "idle" ? "While you weren't using the app" : "", dest.length ? ` · ${dest.slice(0, 2).join(", ")}${dest.length > 2 ? "…" : ""}` : ""].join(""))),
+        ),
+      ));
+    }
+  } else {
+    pv.append(h("div", { class: "allclear" }, icon("check"),
+      h("div", {}, h("h2", {}, "No broken promises found"),
+        h("p", {}, `During this ${fmtSecs(duration)} check, everything ${app.name} did fits what its privacy policy says. It contacted ${companies.length || "no"} compan${companies.length === 1 ? "y" : "ies"}${groups.length > companies.length ? " plus ordinary hosting and system services" : ""}; you can see each one under “Where your data went”.`))));
+  }
+  // at-a-glance
+  const glance = { attention: 0, notable: 0, normal: 0 };
+  for (const g of groups) glance[cat(g.category).status] += 1;
+  pv.append(h("h2", { class: "tab-h" }, "At a glance"),
+    h("div", { class: "glance" },
+      h("div", { class: "glance-item st-attention" }, h("b", {}, String(glance.attention)), h("span", {}, "AI or ad companies")),
+      h("div", { class: "glance-item st-notable" }, h("b", {}, String(glance.notable)), h("span", {}, "analytics or crash reporters")),
+      h("div", { class: "glance-item st-normal" }, h("b", {}, String(glance.normal)), h("span", {}, "normal services (own servers, hosting, updates)")),
+      h("div", { class: "glance-item st-normal" }, h("b", {}, "0 B"), h("span", {}, "of your data sent by No Alibi")),
+    ));
+  // scorecard
   const card = d.findings?.scorecard || {};
-  main.append(h("div", { class: "scorecard", role: "list", "aria-label": "What the policy says" },
-    Object.entries(CLAIM_Q).map(([k, label]) => {
+  pv.append(h("h2", { class: "tab-h" }, "What the privacy policy says"),
+    h("div", { class: "scorecard", role: "list" }, Object.entries(CLAIM_Q).map(([k, label]) => {
       const val = card[k] || "unclear";
       const tone = val === "unclear" ? "unclear" : val === GOOD_ANSWER[k] ? "yes" : "no";
-      const meaning = tone === "yes" ? "good for you" : tone === "no" ? "bad for you" : "the policy doesn't say";
-      return h("div", { class: "score", role: "listitem", title: meaning },
-        h("span", { class: `ic ${tone}`, "aria-label": meaning }, icon(tone === "yes" ? "check" : tone === "no" ? "x" : "q")),
-        h("div", {}, h("div", { class: "k" }, label), h("div", { class: "v" }, val)));
-    })));
+      const word = val === "unclear" ? "Doesn't say" : val === "yes" ? "Yes" : "No";
+      return h("div", { class: "score", role: "listitem" },
+        h("span", { class: `ic ${tone}`, "aria-hidden": "true" }, icon(tone === "yes" ? "check" : tone === "no" ? "x" : "q")),
+        h("div", {}, h("div", { class: "k" }, label), h("div", { class: "v" }, word, h("span", { class: "sr-only" }, tone === "yes" ? " (good for you)" : tone === "no" ? " (not good for you)" : ""))));
+    })),
+    h("p", { class: "hint" }, "Green is good for your privacy, red is not, amber means the policy is vague. See the exact sentences under “Promises”."));
 
-  // ---- the board
-  const flowByDomain = new Map();
-  for (const f of flowsList) {
-    const key = f.domain || f.ip;
-    const cur = flowByDomain.get(key);
-    const rank = { confirmed: 4, likely: 3, possible: 2, weak: 1, unknown: 0 };
-    if (!cur || (rank[f.confidence] || 0) > (rank[cur.confidence] || 0)) flowByDomain.set(key, f);
-  }
-  const evByKey = new Map();
-  for (const e of events) {
-    const key = e.domain || e.ip;
-    const g = evByKey.get(key) || { key, ids: [], out: 0, in: 0, bursts: [], category: flowByDomain.get(key)?.category || e.category, owner: e.owner, flow: flowByDomain.get(key) };
-    g.ids.push(e.id); g.out += e.bytes_out; g.in += e.bytes_in; g.bursts.push(e);
-    evByKey.set(key, g);
-  }
-  const evOf = new Map();
-  for (const g of evByKey.values()) for (const id of g.ids) evOf.set(id, g.key);
-
-  const sevRank = { red: 0, amber: 1, info: 2 };
-  const claimSev = new Map();
-  const evSev = new Map();
-  for (const f of findings) {
-    for (const c of f.claim_ids) if (!claimSev.has(c) || sevRank[f.severity] < sevRank[claimSev.get(c)]) claimSev.set(c, f.severity);
-    for (const e of f.event_ids) { const k = evOf.get(e); if (k && (!evSev.has(k) || sevRank[f.severity] < sevRank[evSev.get(k)])) evSev.set(k, f.severity); }
-  }
-
-  const board = h("div", { class: "board" });
-  const strings = h("svg", { class: "strings", "aria-hidden": "true" });
-  board.append(strings);
-
-  const claimCol = h("section", { "aria-labelledby": "bc1" }, h("h2", { id: "bc1" }, icon("doc"), "What they promise"));
-  if (!claims.length) claimCol.append(h("div", { class: "empty" }, "No verified promises (the policy couldn't be read, or every quote failed the word-for-word check)."));
-  for (const c of claims) {
-    claimCol.append(h("article", { class: `card claim-card ${claimSev.get(c.id) || ""}`, id: `k-${c.id}`, dataset: { claim: c.id } },
-      h("div", { class: "head" }, CLAIM_Q[c.type] || human(c.type), h("span", { class: `tag ${c.value === "yes" ? "live" : ""}` }, c.value), h("span", { class: "id" }, c.id)),
-      h("q", {}, c.quote),
-      h("div", { class: "src" }, h("span", { class: "tag", title: c.match === "exact" ? "Found word for word in the policy" : "Closest real sentence in the policy (≥92% match)" }, c.match === "exact" ? "verbatim" : "closest sentence"),
-        c.providers?.length ? h("span", { class: "tag policy" }, `names ${c.providers.join(", ")}`) : null,
-        h("a", { href: c.source_url, target: "_blank", rel: "noopener noreferrer" }, new URL(c.source_url).hostname)),
+  // ================= Promises tab
+  const pp = panelEls.promises;
+  pp.append(h("p", { class: "tab-intro" }, "A local AI on this Mac read the privacy policy and answered six questions. Every quote below was checked word for word against the real policy page."));
+  for (const [k, label] of Object.entries(CLAIM_Q)) {
+    const c = claims.find((x) => x.type === k);
+    const tone = !c || c.value === "unclear" ? "unclear" : c.value === GOOD_ANSWER[k] ? "yes" : "no";
+    pp.append(h("article", { class: "promise" },
+      h("div", { class: "promise-head" }, h("span", { class: `ic ${tone}`, "aria-hidden": "true" }, icon(tone === "yes" ? "check" : tone === "no" ? "x" : "q")),
+        h("h3", {}, label), h("span", { class: "promise-ans" }, !c ? "Not addressed" : c.value === "yes" ? "Yes" : c.value === "no" ? "No" : "Doesn't say clearly")),
+      c ? h("q", {}, c.quote) : h("p", { class: "muted" }, "The policy doesn't say anything we could quote about this."),
+      c ? h("div", { class: "src" }, h("span", { class: "tag" }, c.match === "exact" ? "Exact quote" : "Closest sentence in the policy"),
+        c.providers?.length ? h("span", { class: "tag policy" }, `Names: ${c.providers.join(", ")}`) : null,
+        h("a", { href: c.source_url, target: "_blank", rel: "noopener noreferrer" }, "Open the policy")) : null,
     ));
   }
 
-  const findCol = h("section", { "aria-labelledby": "bc2" }, h("h2", { id: "bc2" }, icon("scale"), "Findings"));
-  if (!findings.length) findCol.append(h("div", { class: "empty" }, "Nothing the app did contradicts its policy."));
-  const findingEls = [];
-  for (const f of findings) {
-    const el = h("article", { class: `card finding-card ${f.severity}`, id: `k-${f.id}`, tabindex: "0", dataset: { finding: f.id }, "aria-describedby": `why-${f.id}` },
-      h("div", { class: "head" }, sevBadge(f.severity), h("span", { class: "id" }, f.id)),
-      h("div", { class: "title" }, f.title),
-      h("div", { class: "why", id: `why-${f.id}` }, RULE_WHY[f.rule] || ""),
-      h("div", { class: "refs" }, [f.claim_ids.length ? `promise ${f.claim_ids.join(", ")}` : null, f.event_ids.length ? `${f.event_ids.length} burst${f.event_ids.length > 1 ? "s" : ""}` : null].filter(Boolean).join(" · ")),
-    );
-    findingEls.push([el, f]);
-    findCol.append(el);
+  // ================= Where your data went
+  const pw = panelEls.where;
+  pw.append(h("p", { class: "tab-intro" }, `Every service ${app.name} contacted, grouped by the company behind it. Most apps talk to their own servers, update servers and hosting services; those are normal and never flagged.`));
+  if (!groups.length) pw.append(h("div", { class: "empty" }, "The app didn't contact any service on the internet during the check."));
+  for (const g of groups) {
+    const c = cat(g.category);
+    const st = g.flag ? { label: g.flag === "red" ? "Broke a promise" : "Worth knowing", cls: g.flag === "red" ? "st-red" : "st-notable" } : STATUS[c.status];
+    const doms = [...g.domains.values()].sort((a, b) => b.out - a.out);
+    pw.append(h("article", { class: `dest ${g.flag ? `flag-${g.flag}` : ""}` },
+      h("span", { class: "dest-dot", style: { background: c.color }, "aria-hidden": "true" }),
+      h("div", { class: "dest-main" },
+        h("div", { class: "dest-top" }, h("h3", {}, g.name), h("span", { class: `status ${st.cls}` }, st.label)),
+        h("div", { class: "dest-kind" }, g.key.startsWith("kind:") ? c.what : `${c.label}. ${c.what}`),
+        h("details", { class: "dest-details" }, h("summary", {}, `${doms.length} address${doms.length > 1 ? "es" : ""} · technical details`),
+          h("ul", {}, doms.map((x) => h("li", {}, h("span", { class: "mono" }, x.name), ` · sent ${fmtBytes(x.out)}, received ${fmtBytes(x.in)} · `, h("span", { title: CONF_TEXT[x.confidence] }, CONF_TEXT[x.confidence] || ""), x.note ? h("div", { class: "muted small" }, x.note) : null)))),
+      ),
+      h("div", { class: "dest-bytes" }, h("b", {}, fmtBytes(g.out)), h("span", {}, "sent"), h("span", { class: "muted" }, `${fmtBytes(g.in)} received`)),
+    ));
   }
 
-  const evCol = h("section", { "aria-labelledby": "bc3" }, h("h2", { id: "bc3" }, icon("eye"), "What it actually did"));
-  const linked = [...evByKey.values()].filter((g) => evSev.has(g.key)).sort((a, b) => sevRank[evSev.get(a.key)] - sevRank[evSev.get(b.key)] || b.out - a.out);
-  const others = [...evByKey.values()].filter((g) => !evSev.has(g.key)).sort((a, b) => b.out - a.out);
-  const evCard = (g) => {
-    const f = g.flow || {};
-    const maxOut = Math.max(...g.bursts.map((b) => b.bytes_out), 1);
-    return h("article", { class: `card ev-card ${evSev.get(g.key) || ""}`, id: `k-ev-${CSS.escape(g.key)}`, dataset: { ev: g.key }, style: { "--edge-color": cat(g.category).color } },
-      h("div", { class: "head" }, h("span", { class: "cat-dot", style: { width: "9px", height: "9px", borderRadius: "50%", background: cat(g.category).color, display: "inline-block" } }), cat(g.category).label, f.confidence ? h("span", { class: `conf conf-${f.confidence}`, title: CONF_TEXT[f.confidence] }, f.confidence) : null),
-      h("div", { class: "dom" }, g.key),
-      h("div", { class: "row" }, g.owner ? h("span", {}, g.owner) : null, h("span", { class: "mono" }, `↑${fmtBytes(g.out)} ↓${fmtBytes(g.in)}`), h("span", {}, `${g.bursts.length} burst${g.bursts.length > 1 ? "s" : ""}`), f.proc ? h("span", { title: "Process that made the connection" }, `by ${f.proc}`) : null),
-      f.note ? h("div", { class: "note" }, f.note) : null,
-      h("div", { class: "bars", title: "Upload size of each burst over time" }, g.bursts.slice(0, 40).map((b) => h("i", { style: { height: `${Math.max(8, (Math.log10(1 + b.bytes_out) / Math.log10(1 + maxOut)) * 100)}%` }, title: `+${b.t_rel_s}s · ${b.phase.replace("_", " ")} · ↑${fmtBytes(b.bytes_out)}` }))),
-    );
-  };
-  if (!evByKey.size) evCol.append(h("div", { class: "empty" }, "The app made no connections to public servers during the audit."));
-  linked.forEach((g) => evCol.append(evCard(g)));
-  if (others.length) {
-    const det = h("details", { class: "more" }, h("summary", {}, `${others.length} other destination${others.length > 1 ? "s" : ""} with nothing to flag`));
-    others.forEach((g) => det.append(evCard(g)));
-    det.addEventListener("toggle", () => drawStrings());
-    evCol.append(det);
-  }
-  board.append(claimCol, findCol, evCol);
-  main.append(board);
-
-  // red strings between promise -> finding -> evidence
-  function anchor(el, side) {
-    const b = board.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    return { x: (side === "right" ? r.right : r.left) - b.left, y: r.top - b.top + Math.min(r.height / 2, 40) };
-  }
-  function curve(a, b) {
-    const dx = Math.max(30, (b.x - a.x) / 2);
-    return `M${a.x},${a.y} C${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`;
-  }
-  function drawStrings() {
-    strings.replaceChildren();
-    if (window.matchMedia("(max-width: 1100px)").matches) return;
-    for (const [el, f] of findingEls) {
-      for (const c of f.claim_ids) {
-        const k = document.getElementById(`k-${c}`);
-        if (k) strings.append(h("path", { class: f.severity, d: curve(anchor(k, "right"), anchor(el, "left")), dataset: { f: f.id } }));
-      }
-      const keys = [...new Set(f.event_ids.map((e) => evOf.get(e)).filter(Boolean))];
-      for (const key of keys) {
-        const k = document.getElementById(`k-ev-${CSS.escape(key)}`);
-        if (k && k.offsetParent) strings.append(h("path", { class: f.severity, d: curve(anchor(el, "right"), anchor(k, "left")), dataset: { f: f.id } }));
-      }
+  // ================= Step by step
+  const ps = panelEls.story;
+  ps.append(h("p", { class: "tab-intro" }, "What the app did, in order."));
+  const phases = [
+    { id: "startup", title: "While the app was starting", empty: "The app was already open, so we started watching it while it ran." },
+    { id: "user_action", title: "Right after you used the AI feature", empty: (d.timeline?.actions || []).length ? "Nothing was sent in the 5 seconds after you used it." : "You didn't press “I just used the AI feature” during this check." },
+    { id: "idle", title: "The rest of the time", empty: "Nothing else was sent." },
+  ];
+  const flaggedIds = new Set(findings.flatMap((f) => f.event_ids));
+  for (const ph of phases) {
+    const evs = events.filter((e) => e.phase === ph.id && e.bytes_out > 0);
+    const by = new Map();
+    for (const e of evs) {
+      const fl = flowCat.get(e.domain || e.ip) || { category: e.category, confidence: "likely" };
+      const fc = shownCategory(fl);
+      const infra = ["cdn", "unknown", "platform"].includes(fc);
+      const name = infra ? cat(fc).label : e.owner || e.domain || e.ip;
+      const it = by.get(name) || { name, category: fc, out: 0, times: 0, flagged: false };
+      it.out += e.bytes_out; it.times += 1; it.flagged = it.flagged || flaggedIds.has(e.id);
+      by.set(name, it);
     }
+    const items = [...by.values()].sort((a, b) => b.flagged - a.flagged || b.out - a.out);
+    ps.append(h("section", { class: "step" },
+      h("h3", {}, ph.title),
+      items.length ? h("ul", { class: "step-list" }, items.map((it) => h("li", { class: it.flagged ? "flagged" : "" },
+        h("span", { class: "dest-dot", style: { background: cat(it.category).color }, "aria-hidden": "true" }),
+        h("span", { class: "step-name" }, it.name),
+        h("span", { class: "muted" }, `${fmtBytes(it.out)} sent${it.times > 1 ? `, ${it.times} times` : ""}`),
+        it.flagged ? h("span", { class: "status st-red" }, "flagged") : cat(it.category).status === "normal" ? h("span", { class: "status st-normal" }, "normal") : null)))
+        : h("p", { class: "muted" }, ph.empty),
+    ));
   }
-  const focusFinding = (f, on) => {
-    board.classList.toggle("focus", on);
-    board.querySelectorAll(".on").forEach((x) => x.classList.remove("on"));
-    if (!on) return;
-    document.getElementById(`k-${f.id}`)?.classList.add("on");
-    f.claim_ids.forEach((c) => document.getElementById(`k-${c}`)?.classList.add("on"));
-    f.event_ids.forEach((e) => { const k = evOf.get(e); if (k) document.getElementById(`k-ev-${CSS.escape(k)}`)?.classList.add("on"); });
-    strings.querySelectorAll(`path[data-f="${f.id}"]`).forEach((p) => p.classList.add("on"));
-  };
-  for (const [el, f] of findingEls) {
-    el.addEventListener("mouseenter", () => focusFinding(f, true));
-    el.addEventListener("mouseleave", () => focusFinding(f, false));
-    el.addEventListener("focus", () => focusFinding(f, true));
-    el.addEventListener("blur", () => focusFinding(f, false));
-  }
-  requestAnimationFrame(() => requestAnimationFrame(drawStrings));
-  window.onresize = () => drawStrings();
 
-  // ---- timeline
-  main.append(renderTimeline(d.timeline, findings, evOf));
-
-  // ---- self audit + evidence
+  // ================= About this check
+  const pa = panelEls.about;
   const egress = d.egress || [];
   const kinds = {
-    dns: "DNS lookups of known company domains (names from our catalog, nothing about you)",
-    "tls-cert": "TLS handshakes to read a server's certificate (no data sent)",
-    ptr: "Reverse-DNS lookups of server addresses",
+    dns: "Looked up the addresses of known companies (names from our list, nothing about you)",
+    "tls-cert": "Read the public name tag (certificate) of servers the app contacted",
+    ptr: "Asked for the name of a server address",
     "policy-fetch": "Downloaded the public privacy policy",
-    "tavily-search": "Asked Tavily who owns a domain (domain name only)",
-    "exa-search": "Asked Exa who owns a domain (domain name only)",
+    "tavily-search": "Asked Tavily who owns a website (website name only)",
+    "exa-search": "Asked Exa who owns a website (website name only)",
   };
   const byKind = new Map();
   for (const e of egress) { const l = byKind.get(e.kind) || []; l.push(e.sent); byKind.set(e.kind, l); }
-  const selfConns = d.self_audit?.connections || [];
-  const selfOut = selfConns.reduce((s, c) => s + (c.bytes_out || 0), 0);
-  main.append(h("div", { class: "two" },
-    h("section", { class: "panel", "aria-labelledby": "sa" },
-      h("h2", { id: "sa" }, icon("lock"), "No Alibi's own footprint"),
-      h("p", { style: { margin: "0 0 10px" } }, h("span", { class: "big-zero" }, "0"), h("span", { class: "muted" }, "  bytes of the audit's data (traffic, quotes, findings) were sent anywhere. The policy was read by the local model.")),
-      h("table", { class: "ledger" },
-        h("thead", {}, h("tr", {}, h("th", {}, "What No Alibi did on the network"), h("th", {}, "Count"), h("th", {}, "Example of what was sent"))),
-        h("tbody", {}, [...byKind.entries()].map(([k, list]) => h("tr", {}, h("td", {}, kinds[k] || k), h("td", { class: "mono" }, String(list.length)), h("td", { class: "mono" }, list[0]))))),
-      h("p", { class: "hint" }, `The same sensor also watched No Alibi itself and saw ${selfConns.length} connection${selfConns.length === 1 ? "" : "s"} (${fmtBytes(selfOut)} sent). Lookups that finish in under a second can fall between its 1-second samples, which is why No Alibi also writes down every network action it takes in the table above.`),
-    ),
-    h("section", { class: "panel", "aria-labelledby": "ev" },
-      h("h2", { id: "ev" }, icon("lock"), "Sealed evidence"),
-      h("p", { class: "muted", style: { margin: "0 0 8px", fontSize: "13.5px" } }, "SHA-256 over claims.json + events.json + the raw sensor log. Anyone with the bundle can recompute it."),
-      h("div", { class: "hash" }, d.findings?.evidence_sha256 || "not computed"),
-      d.manifest ? h("details", { class: "method", style: { marginTop: "10px" } }, h("summary", {}, `Manifest (${Object.keys(d.manifest.files).length} files)`),
-        h("table", { class: "ledger" }, h("tbody", {}, Object.entries(d.manifest.files).map(([n, sha]) => h("tr", {}, h("td", {}, n), h("td", { class: "mono" }, `${sha.slice(0, 16)}…`)))))) : null,
-      h("div", { class: "setup-actions" },
-        h("a", { class: "btn primary", href: `/api/runs/${runId}/evidence.zip`, download: "" }, icon("down"), "Download evidence"),
-        h("button", { class: "btn ghost", type: "button", onclick: async () => {
-          if (!(await confirmDialog("Delete this case file?", "The capture, findings and evidence bundle for this audit will be removed from this Mac. This can't be undone.", "Delete", true))) return;
-          try { await api(`/api/runs/${runId}`, { method: "DELETE" }); toast("Case file deleted"); location.hash = "#/runs"; } catch (err) { toast("Couldn't delete", err.message, "err"); }
-        } }, icon("trash"), "Delete"),
+  pa.append(
+    h("div", { class: "two" },
+      h("section", { class: "panel" },
+        h("h2", {}, icon("lock"), "Does No Alibi send your data anywhere?"),
+        h("p", {}, h("b", {}, "No."), " The policy was read by an AI running on this Mac. Your traffic details, the quotes and the findings stay here. These are the only things No Alibi itself did on the internet during this check:"),
+        h("table", { class: "ledger" },
+          h("thead", {}, h("tr", {}, h("th", {}, "What"), h("th", {}, "Times"), h("th", {}, "Example"))),
+          h("tbody", {}, [...byKind.entries()].map(([k, list]) => h("tr", {}, h("td", {}, kinds[k] || k), h("td", { class: "mono" }, String(list.length)), h("td", { class: "mono" }, list[0])))))),
+      h("section", { class: "panel" },
+        h("h2", {}, icon("lock"), "Proof this result wasn't changed"),
+        h("p", { class: "muted" }, "This fingerprint (SHA-256) is calculated from the recorded evidence. If anyone edits the files, the fingerprint no longer matches."),
+        h("div", { class: "hash" }, d.findings?.evidence_sha256 || "not computed"),
+        h("div", { class: "setup-actions" },
+          h("a", { class: "btn primary", href: `/api/runs/${runId}/evidence.zip`, download: "" }, icon("down"), "Download the evidence"),
+          h("button", { class: "btn ghost", type: "button", onclick: async () => {
+            if (!(await confirmDialog("Delete this case file?", "Everything recorded for this check will be removed from this Mac. This can't be undone.", "Delete", true))) return;
+            try { await api(`/api/runs/${runId}`, { method: "DELETE" }); toast("Case file deleted"); location.hash = "#/runs"; } catch (err) { toast("Couldn't delete", err.message, "err"); }
+          } }, icon("trash"), "Delete this case file")),
       ),
     ),
-  ));
+    h("section", { class: "panel", style: { marginTop: "16px" } },
+      h("h2", {}, icon("info"), "How we check, and what we can't see"),
+      h("ul", { class: "plain-list" },
+        h("li", {}, "We watch how much data each part of the app sends and to which server, every second, using a tool built into macOS. We never read the contents, never block anything and never change the app."),
+        h("li", {}, "We only flag AI companies, analytics, advertising and crash-reporting services, and only when we're sure who the server belongs to. The app's own servers, update checks and hosting services are normal and never flagged."),
+        h("li", {}, "When a server's address is shared by many companies, we say “unsure” and never accuse anyone based on it."),
+        h("li", {}, "“Big enough to include what you typed” is based on size and timing. We can't see inside encrypted data."),
+        h("li", {}, "We can't see what a company's own servers do with your data after it arrives."),
+        (d.timeline?.warnings || []).map((w) => h("li", { class: "warn" }, w)),
+      )),
+  );
 
-  const warnings = d.timeline?.warnings || [];
-  main.append(h("section", { class: "panel", style: { marginTop: "16px" } },
-    h("details", { class: "method" }, h("summary", {}, "How this was measured, and what we can't see"),
-      h("ul", {},
-        h("li", {}, "Bytes come from macOS's per-socket counters (nettop), sampled every second, for every process inside the app's bundle and their children. No root, no packet capture, no decryption, nothing blocked."),
-        h("li", {}, "Server names: DNS match against known company domains, cross-checked against the server's TLS certificate. Shared CDN addresses are marked 'possible' and can never produce a red finding on their own."),
-        h("li", {}, "An upload 'big enough to contain what you typed' is an inference from size and timing. We never see inside encrypted traffic."),
-        h("li", {}, "Server-side AI calls (the vendor's backend forwarding your data) are invisible from your Mac. We report what leaves the device."),
-        h("li", {}, "Promises come from the public policy page at the time of the audit (its SHA-256 is in claims.json). Every quote is checked word for word against that page."),
-        warnings.map((w) => h("li", { style: { color: "var(--amber)" } }, w)),
-      ))));
-}
-
-function renderTimeline(tl, findings, evOf) {
-  const panel = h("section", { class: "panel timeline-panel", "aria-labelledby": "tlh" }, h("h2", { id: "tlh" }, "Timeline: every upload burst"));
-  if (!tl || !tl.bursts?.length) { panel.append(h("div", { class: "empty" }, "No uploads recorded.")); return panel; }
-  const W = 1200, H = 190, padL = 46, padR = 16, padT = 22, padB = 26;
-  const dur = Math.max(tl.duration || 0, ...tl.bursts.map((b) => b.rel + b.dur), 10);
-  const x = (t) => padL + (Math.max(0, t) / dur) * (W - padL - padR);
-  const maxLog = Math.max(...tl.bursts.map((b) => Math.log10(1 + b.out)), 1);
-  const y = (bytes) => H - padB - (Math.log10(1 + bytes) / maxLog) * (H - padT - padB);
-  const svg = h("svg", { class: "timeline", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img", "aria-label": `${tl.bursts.length} upload bursts over ${Math.round(dur)} seconds` });
-  if (tl.startup_s) {
-    svg.append(h("rect", { class: "band", x: x(0), y: padT - 14, width: x(tl.startup_s) - x(0), height: H - padB - padT + 14 }),
-      h("text", { class: "band-label", x: x(0) + 6, y: padT - 3 }, "launch"));
-  }
-  for (const a of tl.actions || []) {
-    svg.append(h("g", { class: "action" },
-      h("rect", { x: x(a.rel), y: padT - 14, width: x(a.rel + (tl.action_window_s || 5)) - x(a.rel), height: H - padB - padT + 14 }),
-      h("line", { x1: x(a.rel), x2: x(a.rel), y1: padT - 14, y2: H - padB }),
-      h("text", { x: x(a.rel) + 5, y: padT - 3 }, "you used the AI feature")));
-  }
-  const axis = h("g", { class: "axis" }, h("line", { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB }));
-  const step = dur > 240 ? 60 : dur > 90 ? 30 : 10;
-  for (let t = 0; t <= dur; t += step) axis.append(h("text", { x: x(t), y: H - 8, "text-anchor": "middle" }, `${t}s`));
-  for (const b of [1000, 100000]) if (Math.log10(1 + b) <= maxLog) axis.append(h("text", { x: 4, y: y(b) + 4 }, fmtBytes(b)), h("line", { x1: padL, x2: W - padR, y1: y(b), y2: y(b), "stroke-dasharray": "2 6" }));
-  svg.append(axis);
-  for (const b of tl.bursts) {
-    if (!b.out) continue;
-    const bw = Math.max(3, x(b.rel + Math.max(b.dur, 1)) - x(b.rel) - 1);
-    svg.append(h("rect", { class: "bar", x: x(b.rel), y: y(b.out), width: bw, height: H - padB - y(b.out), rx: 1.5, fill: cat(b.category).color },
-      h("title", {}, `+${b.rel.toFixed(1)}s · ${b.domain}\n${cat(b.category).label} · sent ${fmtBytes(b.out)}, received ${fmtBytes(b.in)}`)));
-  }
-  panel.append(svg, h("div", { class: "legend" }, [...new Set(tl.bursts.map((b) => b.category))].map((c) => h("span", {}, h("i", { style: { background: cat(c).color } }), cat(c).label))),
-    h("p", { class: "hint", style: { margin: "6px 0 0" } }, "Bar height is upload size on a log scale. Hover a bar for details."));
-  return panel;
+  select(TABS.some((t) => t.id === tab) ? tab : "verdict", false);
 }
 
 // ------------------------------------------------------------------ boot
