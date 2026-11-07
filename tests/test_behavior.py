@@ -221,3 +221,58 @@ def test_build_events_matches_contract_and_labels_reused_connection():
     )
     assert e1["t_rel_s"] == 42.1
     assert (e2["phase"], e2["category"], e2["lookup"]) == ("idle", "unknown", None)
+
+
+def test_lookup_sends_only_registrable_domains_and_logs_them(tmp_path):
+    from behavior.domain_lookup import lookup_domains
+
+    sent = []
+
+    def fake_tavily(query):
+        sent.append(query)
+        return {"source": "tavily", "summary": "x" * 500, "url": "https://example.org"}
+
+    domains = [
+        "user-8812.tenant.cdp-example.net",
+        "8.8.4.4",
+        "printer.local",
+        "api.foo.co.uk",
+    ]
+    got = lookup_domains(domains, tmp_path, [("tavily", fake_tavily)])
+    assert sorted(sent) == [
+        "cdp-example.net company what is it used for",
+        "foo.co.uk company what is it used for",
+    ]
+    assert got["8.8.4.4"] is None and got["printer.local"] is None
+    assert len(got["user-8812.tenant.cdp-example.net"]["summary"]) <= 200
+    log = (tmp_path / "outbound_queries.log").read_text()
+    assert "user-8812" not in log and "8.8.4.4" not in log and log.count("\n") == 2
+
+    lookup_domains(
+        domains, tmp_path, [("tavily", fake_tavily)]
+    )  # cached: no new queries
+    assert len(sent) == 2
+
+
+def test_lookup_falls_back_to_exa_and_never_raises(tmp_path):
+    from behavior.domain_lookup import lookup_domains
+
+    def broken(query):
+        raise ConnectionError("no network")
+
+    def exa(query):
+        return {"source": "exa", "summary": "Analytics vendor.", "url": "https://e.x"}
+
+    got = lookup_domains(["a.mystery.io"], tmp_path, [("tavily", broken), ("exa", exa)])
+    assert got["a.mystery.io"]["source"] == "exa"
+    got = lookup_domains(["b.other.io"], tmp_path, [("tavily", broken)])
+    assert got["b.other.io"] is None
+
+
+def test_no_keys_means_no_queries_and_no_log(tmp_path, monkeypatch):
+    from behavior import domain_lookup
+
+    monkeypatch.setattr(domain_lookup, "_load_env_key", lambda name: None)
+    got = domain_lookup.lookup_domains(["x.example.com"], tmp_path)
+    assert got == {"x.example.com": None}
+    assert not (tmp_path / "outbound_queries.log").exists()

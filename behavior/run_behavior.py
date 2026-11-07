@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from behavior.capture import CaptureError, sha256_file, start_capture, stop_capture
-from behavior.domain_lookup import categorize, load_endpoints
+from behavior.domain_lookup import categorize, load_endpoints, lookup_domains
 from behavior.mark import ActionMarker, iso, phase_for
 from behavior.parse_pcap import Flow, ParseError, parse_pcap
 
@@ -194,6 +194,7 @@ def run_behavior(
     from_pcap: bool = False,
     interface: str = "veth-host",
     auto_marks: list[float] | None = None,
+    offline: bool = False,
 ) -> Path:
     """Produce run_dir/events.json. Returns its path. Raises BehaviorError with a clear message."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -221,6 +222,8 @@ def run_behavior(
     doc = build_events(
         run_dir.name, flows, capture, actions, app_name, first_party, update
     )
+    if not offline:
+        add_lookups(doc, run_dir)
     out = run_dir / "events.json"
     out.write_text(json.dumps(doc, indent=2))
     _chown_to_sudo_user(run_dir)
@@ -228,6 +231,18 @@ def run_behavior(
         print(f"warning: {w}", file=sys.stderr)
     _print_summary(doc)
     return out
+
+
+def add_lookups(doc: dict, run_dir: Path, providers=None) -> None:
+    """Fill `lookup` for unknown events (domain names only; IPs are never sent)."""
+    unknown = [e["domain"] for e in doc["events"] if e["category"] == "unknown"]
+    if not unknown:
+        return
+    found = lookup_domains(unknown, run_dir, providers)
+    for e in doc["events"]:
+        if e["category"] == "unknown":
+            e["lookup"] = found.get(e["domain"])
+    Events.model_validate(doc)
 
 
 def _print_summary(doc: dict) -> None:
@@ -271,6 +286,11 @@ def main(argv: list[str] | None = None) -> int:
         "--from-pcap", action="store_true", help="re-parse run-dir/run.pcap, no capture"
     )
     ap.add_argument("--interface", default="veth-host")
+    ap.add_argument(
+        "--offline",
+        action="store_true",
+        help="skip Tavily/Exa lookups (nothing leaves)",
+    )
     a = ap.parse_args(argv)
     try:
         run_behavior(
@@ -283,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             a.from_pcap,
             a.interface,
             a.auto_mark,
+            a.offline,
         )
     except (BehaviorError, CaptureError, ParseError) as e:
         print(f"error: {e}", file=sys.stderr)
