@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="panel">
+  <h1>Audit an app</h1>
+  <p class="muted">No Alibi records which servers the app talks to while you use it. Nothing is
+    decrypted or blocked, and other apps' traffic is dropped.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" action="/audit">
+    <label for="app_name">App name</label>
+    <input type="text" id="app_name" name="app_name" required placeholder="Opera"
+           value="{{ form.app_name or '' }}">
+    <div class="row">
+      <div>
+        <label for="cmd">Launch command <small>(optional: we start the app)</small></label>
+        <input type="text" id="cmd" name="cmd" placeholder='"C:\Users\you\AppData\Local\Programs\Opera\opera.exe"'
+               value="{{ form.cmd or '' }}">
+      </div>
+      <div>
+        <label for="proc_names">Process name(s) <small>(comma separated)</small></label>
+        <input type="text" id="proc_names" name="proc_names" placeholder="opera.exe"
+               value="{{ form.proc_names or '' }}">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="first_party">The app's own domain(s) <small>(comma separated)</small></label>
+        <input type="text" id="first_party" name="first_party" placeholder="opera.com"
+               value="{{ form.first_party or '' }}">
+      </div>
+      <div class="row">
+        <div>
+          <label for="seconds">Max seconds</label>
+          <input type="number" id="seconds" name="seconds" min="10" max="900"
+                 value="{{ form.seconds or 120 }}">
+        </div>
+        <div>
+          <label for="interface">Network</label>
+          <input type="text" id="interface" name="interface" value="{{ form.interface or 'Wi-Fi' }}">
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:20px"><button type="submit">Start audit</button></p>
+  </form>
+</section>
+
+{% if runs %}
+<section class="panel">
+  <h2>Past runs</h2>
+  <table>
+    <tr><th>Run</th><th>App</th></tr>
+    {% for r in runs %}
+    <tr><td><a href="/run/{{ r.run_id }}">{{ r.run_id }}</a></td><td>{{ r.app_name }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+{% endblock %}

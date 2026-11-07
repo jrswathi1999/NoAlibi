@@ -8,5 +8,10 @@ rapidfuzz>=3.6
 psutil>=5.9
 # Use the Windows certificate store for HTTPS (antivirus that intercepts TLS breaks certifi).
 truststore>=0.9
+# Local web UI (127.0.0.1 only); httpx is for its tests.
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+httpx>=0.27
 ruff>=0.4
 pytest>=8.0

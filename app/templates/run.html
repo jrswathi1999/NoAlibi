@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}No Alibi · {{ run_id }}{% endblock %}
+{% block body %}
+<section class="panel" id="status-panel">
+  <h1 id="title">Recording…</h1>
+  <p class="muted" id="subtitle">{{ run_id }}</p>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:14px">
+    <button id="mark" title="Shortcut: M">I just used the AI feature</button>
+    <button id="stop" class="secondary">Stop recording</button>
+    <span id="timer" class="muted" style="font-variant-numeric:tabular-nums"></span>
+  </div>
+  <p class="muted" id="hint" style="margin:12px 0 0">Open the app, wait a few seconds, use its AI
+    feature once, then click the button above (or press M here).</p>
+  <div id="messages"></div>
+</section>
+
+<section class="panel">
+  <h2 id="events-title">What the app did</h2>
+  <p class="muted" id="marks"></p>
+  <table>
+    <thead><tr><th>Time</th><th>Phase</th><th>Domain</th><th>Category</th><th>Owner / lookup</th>
+      <th class="num">Sent</th><th class="num">Received</th></tr></thead>
+    <tbody id="events"><tr><td colspan="7" class="muted">Waiting for the app's first connection…</td></tr></tbody>
+  </table>
+</section>
+
+<script>
+const RUN_ID = {{ run_id | tojson }};
+const $ = (id) => document.getElementById(id);
+
+function kb(n) {  // bytes, base 1000
+  if (n < 1000) return n + " B";
+  if (n < 1e6) return (n / 1000).toFixed(1) + " KB";
+  return (n / 1e6).toFixed(1) + " MB";
+}
+function pill(text, cls) {
+  const s = document.createElement("span");
+  s.className = "pill " + cls;
+  s.textContent = text.replace("_", " ");
+  return s;
+}
+function cell(row, content, cls) {
+  const td = document.createElement("td");
+  if (cls) td.className = cls;
+  if (content instanceof Node) td.appendChild(content); else td.textContent = content;
+  row.appendChild(td);
+}
+
+function render(s) {
+  const recording = s.state === "recording";
+  $("title").textContent =
+    s.state === "recording" ? "Recording " + (s.app_name || "") :
+    s.state === "analyzing" ? "Analyzing the capture…" :
+    s.state === "error" ? "Something went wrong" : (s.app_name || "Run") + ": capture done";
+  $("mark").disabled = !recording;
+  $("stop").disabled = !recording;
+  $("hint").hidden = !recording;
+  $("timer").textContent = recording
+    ? Math.floor(s.elapsed) + " s of " + s.max_seconds + " s"
+    : (s.elapsed ? "Recorded " + Math.round(s.elapsed) + " s" : "");
+
+  const msgs = $("messages");
+  msgs.replaceChildren();
+  const add = (text, cls) => { const p = document.createElement("p"); p.className = cls; p.textContent = text; msgs.appendChild(p); };
+  if (s.error) add(s.error, "error");
+  (s.warnings || []).forEach((w) => add(w, "warn"));
+  if (recording && s.processes && s.processes.length === 0) add("No app process found yet.", "warn");
+
+  $("marks").textContent = (s.marks || []).length
+    ? "Marked: " + s.marks.map((m) => new Date(m.t).toLocaleTimeString() + " " + m.label).join(" · ")
+    : (recording ? "No AI action marked yet." : "No action was marked.");
+  $("events-title").textContent = "What the app did (" + (s.events || []).length + " events" +
+    (recording ? ", live" : "") + ")";
+
+  const body = $("events");
+  body.replaceChildren();
+  if (!s.events || s.events.length === 0) {
+    const tr = document.createElement("tr");
+    cell(tr, recording ? "Waiting for the app's first connection…" : "No connections from the app.", "muted");
+    tr.firstChild.colSpan = 7;
+    body.appendChild(tr);
+    return;
+  }
+  for (const e of s.events) {
+    const tr = document.createElement("tr");
+    tr.className = "hl-" + e.phase;
+    cell(tr, "+" + e.t_rel_s.toFixed(1) + " s", "num");
+    cell(tr, pill(e.phase, "ph-" + e.phase));
+    cell(tr, e.domain || (e.ip + " (no name seen)"), "domain");
+    cell(tr, pill(e.category, "cat-" + e.category));
+    cell(tr, e.owner || (e.lookup ? e.lookup.summary : ""));
+    cell(tr, kb(e.bytes_out), "num");
+    cell(tr, kb(e.bytes_in), "num");
+    body.appendChild(tr);
+  }
+}
+
+let timer = null;
+async function poll() {
+  try {
+    const r = await fetch("/api/run/" + encodeURIComponent(RUN_ID));
+    if (r.ok) {
+      const s = await r.json();
+      render(s);
+      if (s.state === "done" || s.state === "error") { clearInterval(timer); return; }
+    }
+  } catch (err) { /* server busy; try again next tick */ }
+}
+
+async function mark() {
+  if ($("mark").disabled) return;
+  await fetch("/api/run/" + encodeURIComponent(RUN_ID) + "/mark",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+  poll();
+}
+$("mark").addEventListener("click", mark);
+$("stop").addEventListener("click", async () => {
+  $("stop").disabled = true;
+  await fetch("/api/run/" + encodeURIComponent(RUN_ID) + "/stop", { method: "POST" });
+  poll();
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "m" || ev.key === "M") mark(); });
+
+poll();
+timer = setInterval(poll, 1000);
+</script>
+{% endblock %}
