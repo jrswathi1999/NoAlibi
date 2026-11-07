@@ -1,0 +1,79 @@
+{
+  "run_id": "20261107-201500-notesapp",
+  "capture": {
+    "start": "2026-11-07T20:16:00Z",
+    "end": "2026-11-07T20:17:30Z",
+    "interface": "veth-host",
+    "pcap_sha256": "a81b3c5d7e9f1a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b"
+  },
+  "user_actions": [
+    {"t": "2026-11-07T20:16:40Z", "label": "used AI summarize on a note"}
+  ],
+  "events": [
+    {
+      "id": "e1", "t": "2026-11-07T20:16:01.200Z", "t_rel_s": 1.2,
+      "domain": "notesapp.com", "ip": "104.18.20.11", "port": 443,
+      "bytes_out": 1840, "bytes_in": 5200, "tls": true,
+      "phase": "startup", "category": "first_party", "owner": "NotesApp", "lookup": null
+    },
+    {
+      "id": "e2", "t": "2026-11-07T20:16:03.500Z", "t_rel_s": 3.5,
+      "domain": "updates.notesapp.com", "ip": "104.18.20.12", "port": 443,
+      "bytes_out": 620, "bytes_in": 48000, "tls": true,
+      "phase": "startup", "category": "update", "owner": "NotesApp", "lookup": null
+    },
+    {
+      "id": "e3", "t": "2026-11-07T20:16:05.000Z", "t_rel_s": 5.0,
+      "domain": "o4501.ingest.sentry.io", "ip": "34.120.195.249", "port": 443,
+      "bytes_out": 900, "bytes_in": 310, "tls": true,
+      "phase": "startup", "category": "error_reporting", "owner": "Sentry", "lookup": null
+    },
+    {
+      "id": "e4", "t": "2026-11-07T20:16:42.120Z", "t_rel_s": 42.1,
+      "domain": "api.openai.com", "ip": "162.159.140.245", "port": 443,
+      "bytes_out": 12034, "bytes_in": 3120, "tls": true,
+      "phase": "user_action", "category": "ai_provider", "owner": "OpenAI", "lookup": null
+    },
+    {
+      "id": "e5", "t": "2026-11-07T20:16:43.000Z", "t_rel_s": 43.0,
+      "domain": "sync.notesapp.com", "ip": "104.18.20.13", "port": 443,
+      "bytes_out": 1500, "bytes_in": 400, "tls": true,
+      "phase": "user_action", "category": "first_party", "owner": "NotesApp", "lookup": null
+    },
+    {
+      "id": "e6", "t": "2026-11-07T20:16:50.000Z", "t_rel_s": 50.0,
+      "domain": "api.mixpanel.com", "ip": "35.190.25.25", "port": 443,
+      "bytes_out": 1210, "bytes_in": 150, "tls": true,
+      "phase": "idle", "category": "analytics", "owner": "Mixpanel", "lookup": null
+    },
+    {
+      "id": "e7", "t": "2026-11-07T20:17:00.100Z", "t_rel_s": 60.1,
+      "domain": "api.mixpanel.com", "ip": "35.190.25.26", "port": 443,
+      "bytes_out": 1190, "bytes_in": 150, "tls": true,
+      "phase": "idle", "category": "analytics", "owner": "Mixpanel", "lookup": null
+    },
+    {
+      "id": "e8", "t": "2026-11-07T20:17:10.000Z", "t_rel_s": 70.0,
+      "domain": "api.mixpanel.com", "ip": "35.190.25.27", "port": 443,
+      "bytes_out": 1205, "bytes_in": 150, "tls": true,
+      "phase": "idle", "category": "analytics", "owner": "Mixpanel", "lookup": null
+    },
+    {
+      "id": "e9", "t": "2026-11-07T20:17:20.050Z", "t_rel_s": 80.05,
+      "domain": "api.mixpanel.com", "ip": "35.190.25.28", "port": 443,
+      "bytes_out": 1198, "bytes_in": 150, "tls": true,
+      "phase": "idle", "category": "analytics", "owner": "Mixpanel", "lookup": null
+    },
+    {
+      "id": "e10", "t": "2026-11-07T20:17:05.000Z", "t_rel_s": 65.0,
+      "domain": "cdn.xyz-metrics.io", "ip": "203.0.113.40", "port": 443,
+      "bytes_out": 2300, "bytes_in": 800, "tls": true,
+      "phase": "idle", "category": "unknown", "owner": null,
+      "lookup": {
+        "source": "tavily",
+        "summary": "XYZ Metrics is an ad-tech company that sells cross-app user analytics.",
+        "url": "https://xyz-metrics.io/about"
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "run_id": "20261107-201500-notesapp",
+  "app": {
+    "name": "NotesApp",
+    "policy_url": "https://notesapp.com/privacy",
+    "subprocessor_url": "https://notesapp.com/subprocessors",
+    "fetched_at": "2026-11-07T20:15:03Z",
+    "policy_sha256": "9f2c6b0e1d4a7c3f8e5b2a9d6c3f0e7b4a1d8c5f2e9b6a3d0c7f4e1b8a5d2c9f"
+  },
+  "model": "qwen2.5:7b",
+  "claims": [
+    {
+      "id": "c1",
+      "type": "names_ai_provider",
+      "value": "no",
+      "providers": [],
+      "quote": "We may share information with trusted service providers.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c2",
+      "type": "data_stays_local",
+      "value": "yes",
+      "providers": [],
+      "quote": "Your notes are stored on your device and never leave it unless you turn on sync.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c3",
+      "type": "trains_on_user_data",
+      "value": "unclear",
+      "providers": [],
+      "quote": "We use information to improve our services.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "fuzzy"
+    },
+    {
+      "id": "c4",
+      "type": "retention_stated",
+      "value": "no",
+      "providers": [],
+      "quote": "We keep information for as long as necessary.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c5",
+      "type": "ai_opt_out",
+      "value": "yes",
+      "providers": [],
+      "quote": "You can turn off AI features at any time in Settings.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    },
+    {
+      "id": "c6",
+      "type": "shares_with_third_parties",
+      "value": "yes",
+      "providers": [],
+      "quote": "We may share information with trusted service providers.",
+      "source_url": "https://notesapp.com/privacy",
+      "validated": true,
+      "match": "exact"
+    }
+  ]
+}

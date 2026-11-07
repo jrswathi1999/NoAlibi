@@ -1,0 +1,63 @@
+{
+  "run_id": "20261107-201500-notesapp",
+  "findings": [
+    {
+      "id": "f1",
+      "severity": "red",
+      "rule": "R1_undisclosed_ai_provider",
+      "title": "Policy never names OpenAI, but the app sent 12 KB to api.openai.com",
+      "claim_ids": ["c1"],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f2",
+      "severity": "red",
+      "rule": "R2_local_promise_broken",
+      "title": "Policy says your data stays on your device, but the app sent 12 KB to api.openai.com right after a user action",
+      "claim_ids": ["c2"],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f3",
+      "severity": "amber",
+      "rule": "R3_background_telemetry",
+      "title": "Background telemetry: 4 idle connections to api.mixpanel.com, about every 10 s",
+      "claim_ids": [],
+      "event_ids": ["e6", "e7", "e8", "e9"]
+    },
+    {
+      "id": "f4",
+      "severity": "amber",
+      "rule": "R4_content_upload_suspicion",
+      "title": "12 KB left for api.openai.com within 5 s of a user action",
+      "claim_ids": [],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f5",
+      "severity": "amber",
+      "rule": "R5_silent_on_training",
+      "title": "App talks to OpenAI, but the policy is unclear about training AI on your data",
+      "claim_ids": ["c3"],
+      "event_ids": ["e4"]
+    },
+    {
+      "id": "f6",
+      "severity": "info",
+      "rule": "R6_unknown_recipient",
+      "title": "Unknown recipient cdn.xyz-metrics.io: XYZ Metrics is an ad-tech company that sells cross-app user analytics.",
+      "claim_ids": [],
+      "event_ids": ["e10"]
+    }
+  ],
+  "scorecard": {
+    "data_stays_local": "yes",
+    "names_ai_provider": "no",
+    "trains_on_user_data": "unclear",
+    "retention_stated": "no",
+    "ai_opt_out": "yes",
+    "shares_with_third_parties": "yes"
+  },
+  "summary": "NotesApp's policy says your notes stay on your device and never names an AI company. During the audit, the app sent 12 KB to OpenAI right after the AI feature was used. The policy is also unclear about whether your data trains AI models. While idle, the app contacted Mixpanel every 10 seconds.",
+  "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}
