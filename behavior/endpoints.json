@@ -1,0 +1,34 @@
+[
+  {"pattern": "api.openai.com", "category": "ai_provider", "owner": "OpenAI"},
+  {"pattern": "*.openai.com", "category": "ai_provider", "owner": "OpenAI"},
+  {"pattern": "*.openai.azure.com", "category": "ai_provider", "owner": "Microsoft Azure OpenAI"},
+  {"pattern": "api.anthropic.com", "category": "ai_provider", "owner": "Anthropic"},
+  {"pattern": "generativelanguage.googleapis.com", "category": "ai_provider", "owner": "Google (Gemini API)"},
+  {"pattern": "*aiplatform.googleapis.com", "category": "ai_provider", "owner": "Google Vertex AI"},
+  {"pattern": "bedrock-runtime.*.amazonaws.com", "category": "ai_provider", "owner": "Amazon Bedrock"},
+  {"pattern": "api.cohere.ai", "category": "ai_provider", "owner": "Cohere"},
+  {"pattern": "api.cohere.com", "category": "ai_provider", "owner": "Cohere"},
+  {"pattern": "api.mistral.ai", "category": "ai_provider", "owner": "Mistral AI"},
+  {"pattern": "api.groq.com", "category": "ai_provider", "owner": "Groq"},
+  {"pattern": "api.together.xyz", "category": "ai_provider", "owner": "Together AI"},
+  {"pattern": "api.perplexity.ai", "category": "ai_provider", "owner": "Perplexity"},
+
+  {"pattern": "*.segment.io", "category": "analytics", "owner": "Segment (Twilio)"},
+  {"pattern": "*.segment.com", "category": "analytics", "owner": "Segment (Twilio)"},
+  {"pattern": "api.mixpanel.com", "category": "analytics", "owner": "Mixpanel"},
+  {"pattern": "*.mixpanel.com", "category": "analytics", "owner": "Mixpanel"},
+  {"pattern": "api2.amplitude.com", "category": "analytics", "owner": "Amplitude"},
+  {"pattern": "*.amplitude.com", "category": "analytics", "owner": "Amplitude"},
+  {"pattern": "*.posthog.com", "category": "analytics", "owner": "PostHog"},
+  {"pattern": "*.google-analytics.com", "category": "analytics", "owner": "Google Analytics"},
+  {"pattern": "*.heap.io", "category": "analytics", "owner": "Heap"},
+  {"pattern": "*.heapanalytics.com", "category": "analytics", "owner": "Heap"},
+
+  {"pattern": "*.doubleclick.net", "category": "tracker", "owner": "Google (DoubleClick)"},
+  {"pattern": "connect.facebook.net", "category": "tracker", "owner": "Meta"},
+  {"pattern": "*.hotjar.com", "category": "tracker", "owner": "Hotjar"},
+
+  {"pattern": "*.sentry.io", "category": "error_reporting", "owner": "Sentry"},
+  {"pattern": "*.bugsnag.com", "category": "error_reporting", "owner": "Bugsnag"},
+  {"pattern": "*.datadoghq.com", "category": "error_reporting", "owner": "Datadog"}
+]
