@@ -118,3 +118,34 @@ def test_quic_counts_as_tls_and_udp_payload_excludes_header():
     ]
     (f,) = flows_from(lines)
     assert f.tls and f.domain == "www.google.com" and f.bytes_out == 1200
+
+
+def test_endpoint_matcher_maps_sample_domains():
+    from behavior.domain_lookup import categorize
+
+    fp = ["notesapp.com"]
+    cases = {
+        "api.openai.com": ("ai_provider", "OpenAI"),
+        "myco.openai.azure.com": ("ai_provider", "Microsoft Azure OpenAI"),
+        "us-central1-aiplatform.googleapis.com": ("ai_provider", "Google Vertex AI"),
+        "bedrock-runtime.us-east-1.amazonaws.com": ("ai_provider", "Amazon Bedrock"),
+        "api.segment.io": ("analytics", "Segment (Twilio)"),
+        "o123.ingest.sentry.io": ("error_reporting", "Sentry"),
+        "sync.notesapp.com": ("first_party", "NotesApp"),
+        "evilsentry.io": ("unknown", None),
+        "random-cdn.example": ("unknown", None),
+    }
+    for domain, want in cases.items():
+        assert categorize(domain, first_party=fp, app_name="NotesApp") == want, domain
+
+
+def test_update_domain_wins_over_first_party():
+    from behavior.domain_lookup import categorize
+
+    got = categorize(
+        "updates.notesapp.com",
+        first_party=["notesapp.com"],
+        update=["updates.notesapp.com"],
+        app_name="NotesApp",
+    )
+    assert got == ("update", "NotesApp")
